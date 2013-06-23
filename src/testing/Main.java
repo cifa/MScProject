@@ -1,12 +1,14 @@
 package testing;
 
-import uk.ac.soton.combinator.core.DataFlow;
-import uk.ac.soton.combinator.core.Port;
+import uk.ac.soton.combinator.core.CombinationType;
 
 public class Main {
 
 	public static void main(String[] args) {
-		Port<Integer> p1 = new Port<Integer>(Integer.class, DataFlow.OUT);
+		SimpleProducer p = new SimpleProducer();
+		SimpleConsumer c = new SimpleConsumer();
+		p.combine(c, CombinationType.HORIZONTAL);
+		new Thread(p).start();
 	}
 
 }

@@ -1,5 +1,6 @@
 package uk.ac.soton.combinator.core;
 
-public interface PassivePortHandler<T> {
-
+interface PassivePortHandler<T> {
+	void acceptMsg(Message<?> msg);
+	Message<T> produce();
 }

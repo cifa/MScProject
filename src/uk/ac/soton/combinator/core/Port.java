@@ -6,16 +6,18 @@ public class Port<T> {
 	private final DataFlow portDataFlow;
 	private final ControlType portControlType;
 	private final PassivePortHandler<T> handler;
-//	private volatile Port<T>
-
-	public Port(Class<T> portDataType, DataFlow portDataFlow) {
-		// active ports don't have handlers
-		this(portDataType, portDataFlow, ControlType.ACTIVE, null);
-		
+	private volatile Port<?> connectedTo;
+	
+	public static <T> Port<T> getActivePort(Class<T> portDataType, DataFlow portDataFlow) {
+		return new Port<T>(portDataType, portDataFlow, ControlType.ACTIVE, null);
 	}
 	
-	public Port(Class<T> portDataType, DataFlow portDataFlow, PassivePortHandler<T> handler) {
-		this(portDataType, portDataFlow, ControlType.PASSIVE, handler);
+	public static <T> Port<T> getPassiveInPort(Class<T> portDataType, PassiveInPortHandler<T> handler) {
+		return new Port<T>(portDataType, DataFlow.IN, ControlType.PASSIVE, handler);
+	}
+	
+	public static <T> Port<T> getPassiveOutPort(Class<T> portDataType, PassiveOutPortHandler<T> handler) {
+		return new Port<T>(portDataType, DataFlow.OUT, ControlType.PASSIVE, handler);
 	}
 	
 	private Port(Class<T> portDataType, DataFlow portDataFlow, ControlType ct, PassivePortHandler<T> h) {
@@ -37,24 +39,57 @@ public class Port<T> {
 		}
 		return handler;
 	}
+	
+	void send(Message<?> msg) {
+		if(portControlType == ControlType.PASSIVE) {
+			throw new UnsupportedOperationException("Passive port cannot actively send a message");
+		}
+		if(! msg.isTypeVerified()) {
+			if(msg.getMessageDataType().equals(portDataType)) {
+				msg.setTypeVerified(true);
+			} else {
+				throw new IllegalArgumentException("Message<" + msg.getMessageDataType().getCanonicalName() 
+						+ "> cannot be sent through Port<" + portDataType.getCanonicalName() +">");
+			}
+		}
+		connectedTo.getHandler().acceptMsg(msg);
+	}
+	
+	@SuppressWarnings("unchecked")
+	Message<? extends T> receive() {
+		if(portControlType == ControlType.PASSIVE) {
+			throw new UnsupportedOperationException("Passive port cannot actively receive a message");
+		}
+		return (Message<? extends T>) connectedTo.getHandler().produce();
+	}
 
-	public static void connectPorts(Port<? extends Object> p1, Port<? extends Object> p2) {	
+	static void connectPorts(Port<?> p1, Port<?> p2) throws IncompatiblePortsException {	
+		// must define data flow from left to right or vice versa
 		if(p1.portDataFlow == p2.portDataFlow) {
 			throw new IncompatiblePortsException("Connected ports cannot have the same Data Flow (" 
 					+ p1.portDataFlow.toString() + ")");
 		}
+		// one port must be active and the other passive
 		if(p1.portControlType == p2.portControlType) {
 			throw new IncompatiblePortsException("Connected ports cannot have the same Control Type (" 
 					+ p1.portControlType.toString() + ")");
 		}
-		
+		// the IN port data type must be either the same or superclass of the OUT port type
 		if((p1.portDataFlow == DataFlow.OUT && ! p2.portDataType.isAssignableFrom(p1.portDataType))
 				|| (p1.portDataFlow == DataFlow.IN && ! p1.portDataType.isAssignableFrom(p2.portDataType))){
 			throw new IncompatiblePortsException("Incompatible port data types");
 		} 
-		
+		// make the actual connection 
+		// TODO we might want check if the ports are already connected (mainly the active one)
 		if(p1.portControlType == ControlType.ACTIVE) {
-			
+			p1.connectedTo = p2;
+		} else {
+			p2.connectedTo = p1;
 		}
+	}
+	
+	@Override
+	public String toString() {
+		return portControlType + " " + portDataFlow + " Port<" + portDataType.getCanonicalName() + ">";
 	}
 }
