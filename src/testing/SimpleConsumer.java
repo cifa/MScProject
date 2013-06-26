@@ -5,11 +5,16 @@ import java.util.Collections;
 import java.util.List;
 
 import uk.ac.soton.combinator.core.Combinator;
+import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.Port;
 
 public class SimpleConsumer extends Combinator {
+	
+	public SimpleConsumer(CombinatorOrientation orientation) {
+		super(orientation);
+	}
 
 	@Override
 	protected List<Port<?>> initLeftBoundary() {

@@ -6,9 +6,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class Combinator {
 	
 	private AtomicBoolean combinable;
-
-	protected final Boundary leftBoundary;
-	protected final Boundary rightBoundary;
+	private final Boundary leftBoundary;
+	private final Boundary rightBoundary;
+	
+	protected final CombinatorOrientation combinatorOrientation;
 	
 	protected abstract List<Port<?>> initLeftBoundary();
 	protected abstract List<Port<?>> initRightBoundary();
@@ -18,15 +19,29 @@ public abstract class Combinator {
 	}
 	
 	public Combinator(CombinatorOrientation orientation) {
-		if(orientation == CombinatorOrientation.LEFT_TO_RIGHT) {
-			leftBoundary = new Boundary(initLeftBoundary());
-			rightBoundary = new Boundary(initRightBoundary());
-		} else {
-			leftBoundary = new Boundary(initRightBoundary());
-			rightBoundary = new Boundary(initLeftBoundary());
-		}
+		leftBoundary = new Boundary();
+		rightBoundary = new Boundary();
+		combinatorOrientation = orientation;
 		// every combinator can be combined with another combinator -> so it's always combinable to start with
 		combinable = new AtomicBoolean(true);
+	}
+	
+	private void initBoundaries() {
+		if(combinatorOrientation == CombinatorOrientation.LEFT_TO_RIGHT) {
+			if(! leftBoundary.isBoundaryInitialized()) {
+				leftBoundary.setBoundaryInterface(initLeftBoundary());
+			}
+			if(! rightBoundary.isBoundaryInitialized()) {
+				rightBoundary.setBoundaryInterface(initRightBoundary());
+			}	
+		} else {
+			if(! leftBoundary.isBoundaryInitialized()) {
+				leftBoundary.setBoundaryInterface(initRightBoundary());
+			}
+			if(! rightBoundary.isBoundaryInitialized()) {
+				rightBoundary.setBoundaryInterface(initLeftBoundary());
+			}
+		}
 	}
 	
 	public Combinator combine(final Combinator other, CombinationType combinationType) {
@@ -39,6 +54,11 @@ public abstract class Combinator {
 		} else {
 			throw new IllegalCombinationException("Combinator already combined");
 		}
+		// make sure all boundaries are initialized
+		initBoundaries();
+		other.initBoundaries();
+		
+		Combinator combinationResult;
 		
 		// try and combine the combinators
 		if(combinationType == CombinationType.HORIZONTAL) {
@@ -58,7 +78,7 @@ public abstract class Combinator {
 			/*
 			 * This can throw IncompatiblePortsException at any stage which means
 			 * that some of the ports can be connected successfully before the whole
-			 * combination fails. This can leave both combinators in an unstable state
+			 * combination fails. This can leave both combinators in an inconsistent state
 			 * and, therefore, their 'combinable' flags are left marked as false; 
 			 * effectively rendering them unusable.
 			 */
@@ -70,7 +90,7 @@ public abstract class Combinator {
 			
 			// with the inner boundaries connected we can expose the outside ones as a new combinator
 			final List<Port<?>> newLeftBoundary = leftBoundary.getBoundaryInterface();
-			return new Combinator() {
+			combinationResult = new Combinator() {
 				
 				@Override
 				protected List<Port<?>> initLeftBoundary() {
@@ -90,7 +110,7 @@ public abstract class Combinator {
 			final List<Port<?>> newRightBoundary = rightBoundary.getBoundaryInterface();
 			newRightBoundary.addAll(other.rightBoundary.getBoundaryInterface());
 			
-			return new Combinator() {
+			combinationResult = new Combinator() {
 
 				@Override
 				protected List<Port<?>> initLeftBoundary() {				
@@ -102,6 +122,25 @@ public abstract class Combinator {
 					return newRightBoundary;
 				}
 			};
+		}
+		// properly initialise the boundaries of the new combinator;
+		combinationResult.initBoundaries();
+		return combinationResult;
+	}
+	
+	protected Boundary getLeftBoundary() {
+		if(combinatorOrientation == CombinatorOrientation.LEFT_TO_RIGHT) {
+			return leftBoundary;
+		} else {
+			return rightBoundary;
+		}
+	}
+	
+	protected Boundary getRightBoundary() {
+		if(combinatorOrientation == CombinatorOrientation.LEFT_TO_RIGHT) {
+			return rightBoundary;
+		} else {
+			return leftBoundary;
 		}
 	}
 }

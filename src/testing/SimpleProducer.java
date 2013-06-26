@@ -6,13 +6,19 @@ import java.util.List;
 import java.util.Random;
 
 import uk.ac.soton.combinator.core.Combinator;
+import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
+import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.Port;
 
 public class SimpleProducer extends Combinator implements Runnable {
 	
 	private Random rand = new Random();
+	
+	public SimpleProducer(CombinatorOrientation orientation) {
+		super(orientation);
+	}
 
 	@Override
 	protected List<Port<?>> initLeftBoundary() {
@@ -28,8 +34,13 @@ public class SimpleProducer extends Combinator implements Runnable {
 
 	@Override
 	public void run() {
-		for (int i = 0; i < 10; i++) {
-			rightBoundary.send(new Message<Integer>(Integer.class, rand.nextInt(100)), 0);
+		for (int i = 0; i < 3; i++) {
+			try {
+				getRightBoundary().send(new Message<Integer>(Integer.class, rand.nextInt(100)), 0);
+			} catch (MessageFailureException ex) {
+				i--;
+//				System.out.println("producer backoff");
+			}
 		}
 	}
 
