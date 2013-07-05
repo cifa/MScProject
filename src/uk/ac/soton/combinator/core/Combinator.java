@@ -1,15 +1,22 @@
 package uk.ac.soton.combinator.core;
 
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class Combinator {
+	
+	private final static int LEFT = 0;
+	private final static int RIGHT = 1;
 	
 	private AtomicBoolean combinable;
 	private final Boundary leftBoundary;
 	private final Boundary rightBoundary;
 	
 	protected final CombinatorOrientation combinatorOrientation;
+	
+	protected final static ExecutorService THREAD_POOL = Executors.newCachedThreadPool();
 	
 	protected abstract List<Port<?>> initLeftBoundary();
 	protected abstract List<Port<?>> initRightBoundary();
@@ -128,6 +135,30 @@ public abstract class Combinator {
 		return combinationResult;
 	}
 	
+	public PortDefinition<?>[] getPortDefinitionCompatibleWithLeftBoundary() {
+		return getBoundaryDefinition(LEFT);
+	}
+	
+	public PortDefinition<?>[] getPortDefinitionCompatibleWithRightBoundary() {
+		return getBoundaryDefinition(RIGHT);
+	}
+	
+	private PortDefinition<?>[] getBoundaryDefinition(int which) {
+		// make sure boundaries are initialised
+		initBoundaries();
+		List<Port<?>> ports;
+		if(which == LEFT) {
+			 ports = leftBoundary.getBoundaryInterface();
+		} else {
+			ports = rightBoundary.getBoundaryInterface();
+		}
+		PortDefinition<?>[] defs = new PortDefinition<?>[ports.size()];
+		for(int i=0; i<ports.size(); i++) {
+			defs[i] = ports.get(i).getOppositePortDefinition();
+		}
+		return defs;
+	}
+	
 	protected Boundary getLeftBoundary() {
 		if(combinatorOrientation == CombinatorOrientation.LEFT_TO_RIGHT) {
 			return leftBoundary;
@@ -142,5 +173,25 @@ public abstract class Combinator {
 		} else {
 			return leftBoundary;
 		}
+	}
+	
+	@Override
+	public String toString() {
+		// make sure boundaries are initialised
+		initBoundaries();
+		String ret = "Combinator (" + combinatorOrientation + ")\n" 
+				+ "Left Ports: \n";
+		for(Port<?> p : leftBoundary.getBoundaryInterface()) {
+			ret += p.toString() + "\n";
+		}
+		ret += "Right Ports: \n";
+		for(Port<?> p : rightBoundary.getBoundaryInterface()) {
+			ret += p.toString() + "\n";
+		}
+		return ret;
+	}
+	
+	public static void shutDownThreadPool() {
+		THREAD_POOL.shutdown();
 	}
 }

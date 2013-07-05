@@ -14,13 +14,15 @@ import uk.ac.soton.combinator.core.RequestFailureException;
 public class PullConsumer<T> extends Combinator implements Runnable {
 	
 	private final Class<T> dataType;
+	private final int noOfMsgs;
 	
-	public PullConsumer(Class<T> dataType, CombinatorOrientation orientation) {
+	public PullConsumer(Class<T> dataType, int noOfMsg, CombinatorOrientation orientation) {
 		super(orientation);
 		if(dataType == null) {
 			throw new IllegalArgumentException("Data Type cannot be null");
 		}
 		this.dataType = dataType;
+		this.noOfMsgs = noOfMsg;
 	}
 
 	@Override
@@ -37,13 +39,14 @@ public class PullConsumer<T> extends Combinator implements Runnable {
 
 	@Override
 	public void run() {
-		for (int i = 0; i < 3; i++) {	
+		for (int i = 0; i < noOfMsgs; i++) {	
 			try {
 				@SuppressWarnings("unchecked")
 				Message<T> msg = (Message<T>) getLeftBoundary().receive(0);
-				System.out.println(msg.getContent());
+//				System.out.println(msg.getContent());
 			} catch (RequestFailureException ex) {
 				i--;
+//				System.out.println(ex.getMessage());
 			}
 		}
 	}

@@ -13,6 +13,6 @@ public abstract class PassiveInPortHandler<T> implements PassivePortHandler<T> {
 		accept((Message<? extends T>) msg);
 	}
 	
-	public abstract void accept(Message<? extends T> msg);
+	public abstract void accept(Message<? extends T> msg) throws MessageFailureException;
 
 }

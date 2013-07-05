@@ -15,9 +15,11 @@ import uk.ac.soton.combinator.core.Port;
 public class SimpleProducer extends Combinator implements Runnable {
 	
 	private Random rand = new Random();
+	private final int noOfMsgs;
 	
-	public SimpleProducer(CombinatorOrientation orientation) {
+	public SimpleProducer(int noOfMsgs, CombinatorOrientation orientation) {
 		super(orientation);
+		this.noOfMsgs = noOfMsgs;
 	}
 
 	@Override
@@ -34,7 +36,7 @@ public class SimpleProducer extends Combinator implements Runnable {
 
 	@Override
 	public void run() {
-		for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < noOfMsgs; i++) {
 			try {
 				getRightBoundary().send(new Message<Integer>(Integer.class, rand.nextInt(100)), 0);
 			} catch (MessageFailureException ex) {

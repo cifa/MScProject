@@ -80,12 +80,17 @@ public class Port<T> {
 			throw new IncompatiblePortsException("Incompatible port data types");
 		} 
 		// make the actual connection 
-		// TODO we might want check if the ports are already connected (mainly the active one)
 		if(p1.portControlType == ControlType.ACTIVE) {
 			p1.connectedTo = p2;
 		} else {
 			p2.connectedTo = p1;
 		}
+	}
+	
+	PortDefinition<T> getOppositePortDefinition() {
+		return new PortDefinition<>(portDataType, 
+				DataFlow.getOposite(portDataFlow), 
+				ControlType.getOposite(portControlType));
 	}
 	
 	@Override

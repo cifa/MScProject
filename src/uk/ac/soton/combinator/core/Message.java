@@ -35,4 +35,16 @@ public class Message<T> {
 	void setTypeVerified(boolean typeVerified) {
 		this.typeVerified = typeVerified;
 	}
+	
+	@Override
+	public boolean equals(Object other) {
+		if(other instanceof Message) {
+			if(content == null) {
+				return ((Message<?>) other).content == null;
+			} else {
+				return content.equals(((Message<?>) other).content);
+			}
+		}
+		return false;
+	}
 }

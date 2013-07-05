@@ -14,7 +14,7 @@ import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
 import uk.ac.soton.combinator.core.RequestFailureException;
 
-public class EliminationBound<T> {
+public class Mutex<T> {
 	
 	private AtomicBoolean busy;
 	private final Class<T> dataType;
@@ -22,7 +22,7 @@ public class EliminationBound<T> {
 	public final Combinator LeftBound;
 	public final Combinator RightBound;
 	
-	public EliminationBound(Class<T> dataType, CombinatorOrientation orientation) {
+	public Mutex(Class<T> dataType, CombinatorOrientation orientation) {
 		this.dataType = dataType;
 		this.busy = new AtomicBoolean();
 		if(orientation == CombinatorOrientation.LEFT_TO_RIGHT) {
