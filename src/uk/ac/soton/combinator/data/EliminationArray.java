@@ -3,6 +3,7 @@ package uk.ac.soton.combinator.data;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicStampedReference;
 
 import uk.ac.soton.combinator.core.Combinator;
@@ -43,6 +44,9 @@ public class EliminationArray<T> extends Combinator {
 //		throughput = new AtomicInteger();
 	}
 	
+	public AtomicInteger in = new AtomicInteger();
+	public AtomicInteger out = new AtomicInteger();
+	
 	@Override
 	protected List<Port<?>> initLeftBoundary() {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
@@ -50,6 +54,7 @@ public class EliminationArray<T> extends Combinator {
 
 			@Override
 			public void accept(Message<? extends T> msg) throws MessageFailureException {
+				in.incrementAndGet();
 				T offer = msg.getContent();
 				long time = System.currentTimeMillis() + timeout;
 				boolean offered = false;
@@ -63,9 +68,11 @@ public class EliminationArray<T> extends Combinator {
 						if(slots[slotIndex].getStamp() == TAKEN) {
 							// message load passed over successfully -> reset and return
 							slots[slotIndex].compareAndSet(offer, null, TAKEN, EMPTY);
+							out.incrementAndGet();
 							return;
 						}
 					}
+					Thread.yield();
 				}
 				// timeout - withdraw the offer and back off
 				if(offered) {
@@ -74,6 +81,7 @@ public class EliminationArray<T> extends Combinator {
 					} else {
 						// hmm, somebody must have taken it after all -> reset the slot and return
 						slots[slotIndex].compareAndSet(offer, null, TAKEN, EMPTY);
+						out.incrementAndGet();
 					}
 				} else {
 					// didn't even manage to offer the message

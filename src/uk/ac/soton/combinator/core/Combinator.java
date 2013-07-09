@@ -78,7 +78,7 @@ public abstract class Combinator {
 				combinable.compareAndSet(false, true);
 				other.combinable.compareAndSet(false, true);
 				throw new IllegalCombinationException("Incompatible boundery sizes of " +
-						"vertically combined combinators. " + thisRight.size() + " port(s) connecting to "
+						"horizontally combined combinators. " + thisRight.size() + " port(s) connecting to "
 						+ otherLeft.size() + " port(s)");
 			}
 			

@@ -1,0 +1,69 @@
+package testing.Philosopher;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
+
+import uk.ac.soton.combinator.core.Combinator;
+import uk.ac.soton.combinator.core.DataFlow;
+import uk.ac.soton.combinator.core.Message;
+import uk.ac.soton.combinator.core.MessageFailureException;
+import uk.ac.soton.combinator.core.Port;
+
+public class Philosopher extends Combinator implements Runnable {
+	
+	private PhilosopherState state = PhilosopherState.THINKING;
+	private final int id;
+	private Random rand = new Random();
+	
+	public Philosopher(int id) {
+		this.id = id;
+	}
+
+	@Override
+	protected List<Port<?>> initLeftBoundary() {
+		return Collections.emptyList();
+	}
+
+	@Override
+	protected List<Port<?>> initRightBoundary() {
+		List<Port<?>> ports = new ArrayList<Port<?>>();
+		// port 0 to request forks to eat
+		ports.add(Port.getActivePort(Integer.class, DataFlow.OUT));
+		// port 1 to release forks after eating
+		ports.add(Port.getActivePort(Integer.class, DataFlow.OUT));
+		return ports;
+	}
+
+	@Override
+	public void run() {
+		// run for 10 seconds
+		long finish = System.currentTimeMillis() + 10000;
+		while(System.currentTimeMillis() < finish) {
+			if(state == PhilosopherState.THINKING) {
+				System.out.println("Philosopher " + id + " is trying to get the forks");
+				try {
+					// grab the forks
+					getRightBoundary().send(new Message<Integer>(Integer.class, id), 0);
+					state = PhilosopherState.EATING;
+					System.out.println("Philosopher " + id + " has acquired both forks");
+				} catch (MessageFailureException ex) {
+					System.out.println("Philosopher " + id + " is STARVING");
+				}
+			} else {
+				System.out.println("Philosopher " + id + " has finished EATING now");
+				// return the forks
+				getRightBoundary().send(new Message<Integer>(Integer.class, id), 1);
+				state = PhilosopherState.THINKING;
+				System.out.println("Philosopher " + id + " has return the forks");
+			}
+			int wait = rand.nextInt(100);
+			System.out.println("Philosopher " + id + " is " + state + " (for " + wait + " ms)");
+			try {
+				Thread.sleep(wait);
+			} catch (InterruptedException e) {}
+		}
+	}
+
+}
