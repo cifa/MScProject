@@ -25,8 +25,8 @@ public class ReverseWire extends UntypedWire {
 	protected List<Port<?>> initLeftBoundary() {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		for(int i=0; i<portsDefinitions.length; i++) {
-			ports.add(i, this.getPort(portsDefinitions[i], Side.LEFT, portsDefinitions.length + i));
-			ports.add(this.getComplementaryPort(portsDefinitions[i], Side.LEFT, i));
+			ports.add(i, getPort(portsDefinitions[i], Side.LEFT, portsDefinitions.length + i));
+			ports.add(getComplementaryPort(portsDefinitions[i], Side.LEFT, i));
 		}
 		return ports;
 	}

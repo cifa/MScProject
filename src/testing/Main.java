@@ -58,12 +58,12 @@ public class Main {
 //		eliminationStackTest(1000, 1000);
 //		eliminationStackTest(1000, 1000);
 //		eliminationStackArrayFirstTest(100, 1000);
-		eliminationBackOffStackTest(1000, 10000);
-		eliminationBackOffStackTest(1000, 10000);
-		eliminationBackOffStackTest(1000, 10000);
-		eliminationBackOffStackTest(1000, 10000);
-		eliminationBackOffStackTest(1000, 10000);
-		eliminationBackOffStackTest(1000, 10000);
+//		eliminationBackOffStackTest(1000, 10000);
+//		eliminationBackOffStackTest(1000, 10000);
+//		eliminationBackOffStackTest(1000, 10000);
+//		eliminationBackOffStackTest(1000, 10000);
+//		eliminationBackOffStackTest(1000, 10000);
+//		eliminationBackOffStackTest(1000, 10000);
 //		eliminationArrayTest(10, 100);
 //		eliminationExchangerTest(1000, 10000);
 //		eliminationExchangerTest(1000, 10000);
@@ -76,16 +76,16 @@ public class Main {
 //		copyWireTest(10, 100);
 //		copyAndJoinWithTwoStacksTest(10, 1);
 //		copyAndJoinWithTwoQueuesTest(100,1000);
-//		permuteWirePortTest();
+		permuteWirePortTest();
 //		permuteWiresTest(10);
 //		joinPushWireTest();
 //		reverseWirePortTest();
-		eliminationStackComponentTest(1000, 10000);
-		eliminationStackComponentTest(1000, 10000);
-		eliminationStackComponentTest(1000, 10000);
-		eliminationStackComponentTest(1000, 10000);
-		eliminationStackComponentTest(1000, 10000);
-		eliminationStackComponentTest(1000, 10000);
+//		eliminationStackComponentTest(1000, 10000);
+//		eliminationStackComponentTest(1000, 10000);
+//		eliminationStackComponentTest(1000, 10000);
+//		eliminationStackComponentTest(1000, 10000);
+//		eliminationStackComponentTest(1000, 10000);
+//		eliminationStackComponentTest(1000, 10000);
 		// always shut down all threads
 		Combinator.shutDownThreadPool();
 	}
@@ -957,7 +957,7 @@ public class Main {
 		defs[2] = new PortDefinition<>(Long.class, DataFlow.IN, ControlType.ACTIVE);
 		defs[3] = new PortDefinition<>(Short.class, DataFlow.OUT, ControlType.PASSIVE);
 		
-		PermuteWire pw = new PermuteWire(defs, new int[] {1,3,0,2}, CombinatorOrientation.RIGHT_TO_LEFT);
+		PermuteWire pw = new PermuteWire(defs, new int[] {1,3,0,2}, CombinatorOrientation.LEFT_TO_RIGHT);
 		
 		System.out.println(pw);
 	}
