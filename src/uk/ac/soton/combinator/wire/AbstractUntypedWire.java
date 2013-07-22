@@ -12,17 +12,17 @@ import uk.ac.soton.combinator.core.Port;
 import uk.ac.soton.combinator.core.PortDefinition;
 import uk.ac.soton.combinator.core.RequestFailureException;
 
-public abstract class UntypedWire extends Combinator {
+public abstract class AbstractUntypedWire extends Combinator {
 	
 	protected enum Side {
 		LEFT, RIGHT
 	}
 
-	public UntypedWire() {
+	public AbstractUntypedWire() {
 		super();
 	}
 	
-	public UntypedWire(CombinatorOrientation orientation) {
+	public AbstractUntypedWire(CombinatorOrientation orientation) {
 		super(orientation);
 	}
 	

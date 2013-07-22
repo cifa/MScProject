@@ -7,6 +7,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
+import uk.ac.soton.combinator.core.CombinatorThreadPool;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.MessageFailureException;
@@ -47,13 +48,14 @@ public class CopyWire<T> extends Combinator {
 				
 				mutexIn.lock();
 				try {
-					//TODO create a new copy message for failure handling
 					// make sure failure flag is reset
 					copyFailed = false;
 					final CountDownLatch copyComplete = new CountDownLatch(noOfCopyPorts);
 					// start all copy runners (threads)
 					for(int i=0; i<noOfCopyPorts; i++) {
-						THREAD_POOL.execute(new CopyRunner((Message<T>) msg, i, copyComplete));
+						// create copy message by encapsulating the original one
+						Message<T> copyMsg = (Message<T>) new Message<>(msg);
+						CombinatorThreadPool.execute(new CopyRunner(copyMsg, i, copyComplete));
 					}
 					// wait for all runners to complete
 					copyComplete.await();

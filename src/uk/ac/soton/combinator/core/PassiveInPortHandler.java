@@ -1,5 +1,6 @@
 package uk.ac.soton.combinator.core;
 
+
 public abstract class PassiveInPortHandler<T> implements PassivePortHandler<T> {
 
 	@Override

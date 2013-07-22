@@ -9,6 +9,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
+import uk.ac.soton.combinator.core.CombinatorThreadPool;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.MessageFailureException;
@@ -43,23 +44,29 @@ public class JoinPushWire<T> extends Combinator {
 		}
 		barrier = new CyclicBarrier(noOfJoinPorts, new Runnable() {
 			
+			@SuppressWarnings("unchecked")
 			@Override
 			public void run() {
 				msgJoinSuccessful = true;
-				final Message<T> msg = joinMessages.get(0);
+				Message<T>[] msgs = (Message<T>[]) new Message<?>[JoinPushWire.this.noOfJoinPorts];
+				msgs[0] = joinMessages.get(0);
+				
 				for(int i=1; i<JoinPushWire.this.noOfJoinPorts; i++) {
-					if(!msg.equals(joinMessages.get(i))) {
+					msgs[i] = joinMessages.get(i);
+					if(!msgs[0].contentEquals(msgs[i])) {
 						msgJoinSuccessful = false;
 						break;
 					}
 				}
-				//TODO create a new merge message and send off down the right boundary on a new thread
-				// we just use the first msg for the time being
+				
 				if(msgJoinSuccessful) {
-					THREAD_POOL.execute(new Runnable() {					
+					// we create a new join message from all received messages
+					final Message<T> joinMsg = new Message<>(msgs);
+					// ... and send it on
+					CombinatorThreadPool.execute(new Runnable() {					
 						@Override
 						public void run() {
-							getRightBoundary().send(msg, 0);
+							getRightBoundary().send(joinMsg, 0);
 						}
 					});
 				}

@@ -9,7 +9,7 @@ import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.Port;
 import uk.ac.soton.combinator.core.PortDefinition;
 
-public class ReverseWire extends UntypedWire {
+public class ReverseWire extends AbstractUntypedWire {
 	
 	private final PortDefinition<?>[] portsDefinitions;
 	

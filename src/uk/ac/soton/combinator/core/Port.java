@@ -1,5 +1,6 @@
 package uk.ac.soton.combinator.core;
 
+
 public class Port<T> {
 	
 	private final Class<T> portDataType;
@@ -44,6 +45,9 @@ public class Port<T> {
 		if(portControlType == ControlType.PASSIVE) {
 			throw new UnsupportedOperationException("Passive port cannot actively send a message");
 		}
+		// DROP INVALID MESSAGE (is it OK to do that??)
+		if(! msg.isValidMessage()) return;
+		
 		if(! msg.isTypeVerified()) {
 			if(msg.getMessageDataType().equals(portDataType)) {
 				msg.setTypeVerified(true);

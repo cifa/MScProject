@@ -7,9 +7,9 @@ import testing.nocombinators.Producer;
 import uk.ac.soton.combinator.core.CombinationType;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
+import uk.ac.soton.combinator.core.CombinatorThreadPool;
 import uk.ac.soton.combinator.core.ControlType;
 import uk.ac.soton.combinator.core.DataFlow;
-import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.PortDefinition;
 import uk.ac.soton.combinator.data.BackOffTreiberStack;
 import uk.ac.soton.combinator.data.EliminationArray;
@@ -75,8 +75,8 @@ public class Main {
 //		synchWireTestRigtToLeft(100);
 //		copyWireTest(10, 100);
 //		copyAndJoinWithTwoStacksTest(10, 1);
-//		copyAndJoinWithTwoQueuesTest(100,1000);
-		permuteWirePortTest();
+		copyAndJoinWithTwoQueuesTest(100,1000);
+//		permuteWirePortTest();
 //		permuteWiresTest(10);
 //		joinPushWireTest();
 //		reverseWirePortTest();
@@ -87,7 +87,7 @@ public class Main {
 //		eliminationStackComponentTest(1000, 10000);
 //		eliminationStackComponentTest(1000, 10000);
 		// always shut down all threads
-		Combinator.shutDownThreadPool();
+		CombinatorThreadPool.shutdown();
 	}
 
 

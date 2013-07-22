@@ -16,6 +16,7 @@ import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
 import uk.ac.soton.combinator.core.RequestFailureException;
 
+@Deprecated
 public class EliminationExchanger<T> extends Combinator {
 	
 	private final static int OFFERED = 0;

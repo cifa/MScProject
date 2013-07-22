@@ -15,6 +15,7 @@ import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
 import uk.ac.soton.combinator.core.RequestFailureException;
 
+@Deprecated
 public class EliminationArray<T> extends Combinator {
 	
 	private final static int EMPTY = 0;

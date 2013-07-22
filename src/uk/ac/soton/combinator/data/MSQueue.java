@@ -16,14 +16,14 @@ import uk.ac.soton.combinator.core.RequestFailureException;
 public class MSQueue<T> extends Combinator {
 	
 	private final Class<T> dataType;
-	private final AtomicReference<Node<T>> head;
-	private final AtomicReference<Node<T>> tail;
+	private final AtomicReference<Node<Message<T>>> head;
+	private final AtomicReference<Node<Message<T>>> tail;
 	
 	public MSQueue(Class<T> queueDataType, CombinatorOrientation orientation) {
 		super(orientation);
 		dataType = queueDataType;
-		head = new AtomicReference<Node<T>>(new Node<T>(null, null));
-		tail = new AtomicReference<Node<T>>(head.get());
+		head = new AtomicReference<>(new Node<Message<T>>(null, null));
+		tail = new AtomicReference<>(head.get());
 	}
 
 	@Override
@@ -31,13 +31,14 @@ public class MSQueue<T> extends Combinator {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		ports.add(Port.getPassiveInPort(dataType, new PassiveInPortHandler<T>() {
 
+			@SuppressWarnings("unchecked")
 			@Override
 			public void accept(Message<? extends T> msg)
 					throws MessageFailureException {
-				Node<T> nTail = new Node<T>(msg.getContent(), null);
+				Node<Message<T>> nTail = new Node<Message<T>>((Message<T>) msg, null);
 				while(true) {
-					Node<T> cTail = tail.get();
-					Node<T> cNext = cTail.next.get();
+					Node<Message<T>> cTail = tail.get();
+					Node<Message<T>> cNext = cTail.next.get();
 					if(cTail == tail.get()) {
 						if(cNext == null) {
 							if(cTail.next.compareAndSet(null, nTail)) {
@@ -65,9 +66,9 @@ public class MSQueue<T> extends Combinator {
 			@Override
 			public Message<T> produce() throws RequestFailureException {
 				while(true) {
-					Node<T> cHead = head.get();
-					Node<T> cTail = tail.get();
-					Node<T> cNext = cHead.next.get();
+					Node<Message<T>> cHead = head.get();
+					Node<Message<T>> cTail = tail.get();
+					Node<Message<T>> cNext = cHead.next.get();
 					if(cHead == head.get()) {
 						if(cHead == cTail) {
 							if(cNext == null) {
@@ -75,9 +76,9 @@ public class MSQueue<T> extends Combinator {
 							}
 							tail.compareAndSet(cTail, cNext);
 						} else {
-							T value = cNext.value;
+							Message<T> msg = cNext.value;
 							if(head.compareAndSet(cHead, cNext)) {
-								return new Message<T>(dataType, value);
+								return msg;
 							}
 						}
 					}

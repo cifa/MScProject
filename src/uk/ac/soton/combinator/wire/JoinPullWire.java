@@ -9,6 +9,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
+import uk.ac.soton.combinator.core.CombinatorThreadPool;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.PassiveOutPortHandler;
@@ -56,6 +57,7 @@ public class JoinPullWire<T> extends Combinator {
 			
 			private final RequestFailureException ex = new RequestFailureException("Unable to join all messages (not equal)");
 
+			@SuppressWarnings("unchecked")
 			@Override
 			public Message<T> produce() throws RequestFailureException {
 				mutexOut.lock();
@@ -70,23 +72,23 @@ public class JoinPullWire<T> extends Combinator {
 						// start join runners on ports that haven't fetched a message yet
 						for(int i=0; i<noOfJoinPorts; i++) {
 							if(joinMessages.get(i) == null) {
-								THREAD_POOL.execute(new JoinRunner(i, runnersComplete));
+								CombinatorThreadPool.execute(new JoinRunner(i, runnersComplete));
 							}
 						}
 						// wait for all runners to complete
 						runnersComplete.await();
 						if(noOfMsgToFetch.get() == 0) {
 							// we have all messages -> are they the same?
-							Message<T> msg = joinMessages.get(0);
+							Message<T>[] msgs = (Message<T>[]) new Message<?>[noOfJoinPorts];
+							msgs[0] = joinMessages.get(0);
 							for(int i=1; i<noOfJoinPorts; i++) {
-//								System.out.println("Pulled " + msg.getContent() + " and " + joinMessages.get(i).getContent());
-								if(!msg.equals(joinMessages.get(i))) {
+								msgs[i] = joinMessages.get(i);
+								if(!msgs[0].contentEquals(msgs[i])) {
 									throw ex;
 								}
 							}
 							// all fine -> return a join message
-							//TODO we need to do something failure related here -> new message??
-							return msg;
+							return new Message<>(msgs);
 						} else if(noOfMsgToFetch.get() == noOfJoinPorts) {
 							// no messages AT ALL -> fail without backoff 
 							throw new RequestFailureException("Unable to fetch any messages at all");

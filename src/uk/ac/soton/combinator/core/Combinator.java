@@ -1,8 +1,6 @@
 package uk.ac.soton.combinator.core;
 
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class Combinator {
@@ -15,8 +13,6 @@ public abstract class Combinator {
 	private final Boundary rightBoundary;
 	
 	protected final CombinatorOrientation combinatorOrientation;
-	
-	protected final static ExecutorService THREAD_POOL = Executors.newCachedThreadPool();
 	
 	protected abstract List<Port<?>> initLeftBoundary();
 	protected abstract List<Port<?>> initRightBoundary();
@@ -189,9 +185,5 @@ public abstract class Combinator {
 			ret += p.toString() + "\n";
 		}
 		return ret;
-	}
-	
-	public static void shutDownThreadPool() {
-		THREAD_POOL.shutdown();
 	}
 }
