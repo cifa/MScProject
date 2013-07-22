@@ -3,18 +3,19 @@ package testing.nocombinators;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 
+import testing.IStack;
 import uk.ac.soton.combinator.core.Message;
 
 public class MessageProducer implements Runnable  {
 
 	private final static Random rand = new Random();
 	
-	private final EliminationStack<Message<Integer>> stack;	
+	private final IStack<Message<Integer>> stack;	
 	private final int noOfMsgs;
 	private final CountDownLatch startGate;
 	private final CountDownLatch endGate;
 	
-	public MessageProducer(EliminationStack<Message<Integer>> stack, int noOfMsgs, 
+	public MessageProducer(IStack<Message<Integer>> stack, int noOfMsgs, 
 			CountDownLatch startGate, CountDownLatch endGate) {
 		
 		this.stack = stack;

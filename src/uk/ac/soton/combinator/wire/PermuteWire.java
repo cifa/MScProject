@@ -92,7 +92,7 @@ public class PermuteWire extends Combinator {
 				if(portPermutations[portIndex] == i) break;
 			}
 			/*
-			 * We need to create a complimentary port to the corresponding
+			 * We need to create a complementary port to the corresponding
 			 * one on the left boundary. That means the same data type but
 			 * opposite data flow and port control type
 			 */

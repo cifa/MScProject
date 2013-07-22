@@ -2,16 +2,17 @@ package testing.nocombinators;
 
 import java.util.concurrent.CountDownLatch;
 
+import testing.IStack;
 import uk.ac.soton.combinator.core.Message;
 
 public class MessageConsumer implements Runnable {
 	
-	private final EliminationStack<Message<Integer>> stack;	
+	private final IStack<Message<Integer>> stack;	
 	private final int noOfMsgs;
 	private final CountDownLatch startGate;
 	private final CountDownLatch endGate;
 	
-	public MessageConsumer(EliminationStack<Message<Integer>> stack, int noOfMsgs, 
+	public MessageConsumer(IStack<Message<Integer>> stack, int noOfMsgs, 
 			CountDownLatch startGate, CountDownLatch endGate) {
 		
 		this.stack = stack;

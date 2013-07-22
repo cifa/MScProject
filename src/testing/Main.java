@@ -1,13 +1,15 @@
 package testing;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Exchanger;
 
+import testing.nocombinators.Consumer;
+import testing.nocombinators.Producer;
 import uk.ac.soton.combinator.core.CombinationType;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.ControlType;
 import uk.ac.soton.combinator.core.DataFlow;
+import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.PortDefinition;
 import uk.ac.soton.combinator.data.BackOffTreiberStack;
 import uk.ac.soton.combinator.data.EliminationArray;
@@ -25,7 +27,9 @@ import uk.ac.soton.combinator.wire.JoinPullWire;
 import uk.ac.soton.combinator.wire.AdaptorPushWire;
 import uk.ac.soton.combinator.wire.ChoiceReceiveWire;
 import uk.ac.soton.combinator.wire.ChoiceSendWire;
+import uk.ac.soton.combinator.wire.JoinPushWire;
 import uk.ac.soton.combinator.wire.PermuteWire;
+import uk.ac.soton.combinator.wire.ReverseWire;
 import uk.ac.soton.combinator.wire.SynchWire;
 
 public class Main {
@@ -54,19 +58,19 @@ public class Main {
 //		eliminationStackTest(1000, 1000);
 //		eliminationStackTest(1000, 1000);
 //		eliminationStackArrayFirstTest(100, 1000);
-//		eliminationBackOffStackTest(1000, 10000);
-//		eliminationBackOffStackTest(1000, 10000);
-//		eliminationBackOffStackTest(1000, 10000);
-//		eliminationBackOffStackTest(1000, 10000);
-//		eliminationBackOffStackTest(1000, 10000);
-//		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 10000);
 //		eliminationArrayTest(10, 100);
-		eliminationExchangerTest(1000, 10000);
-		eliminationExchangerTest(1000, 10000);
-		eliminationExchangerTest(1000, 10000);
-		eliminationExchangerTest(1000, 10000);
-		eliminationExchangerTest(1000, 10000);
-		eliminationExchangerTest(1000, 10000);
+//		eliminationExchangerTest(1000, 10000);
+//		eliminationExchangerTest(1000, 10000);
+//		eliminationExchangerTest(1000, 10000);
+//		eliminationExchangerTest(1000, 10000);
+//		eliminationExchangerTest(1000, 10000);
+//		eliminationExchangerTest(1000, 10000);
 //		synchWireTest(1000);
 //		synchWireTestRigtToLeft(100);
 //		copyWireTest(10, 100);
@@ -74,7 +78,14 @@ public class Main {
 //		copyAndJoinWithTwoQueuesTest(100,1000);
 //		permuteWirePortTest();
 //		permuteWiresTest(10);
-		
+//		joinPushWireTest();
+//		reverseWirePortTest();
+		eliminationStackComponentTest(1000, 10000);
+		eliminationStackComponentTest(1000, 10000);
+		eliminationStackComponentTest(1000, 10000);
+		eliminationStackComponentTest(1000, 10000);
+		eliminationStackComponentTest(1000, 10000);
+		eliminationStackComponentTest(1000, 10000);
 		// always shut down all threads
 		Combinator.shutDownThreadPool();
 	}
@@ -951,6 +962,18 @@ public class Main {
 		System.out.println(pw);
 	}
 	
+	private static void reverseWirePortTest() {
+		PortDefinition<?>[] defs = new PortDefinition<?>[4];
+		defs[0] = new PortDefinition<>(Integer.class, DataFlow.IN, ControlType.PASSIVE);
+		defs[1] = new PortDefinition<>(Number.class, DataFlow.OUT, ControlType.ACTIVE);
+		defs[2] = new PortDefinition<>(Long.class, DataFlow.IN, ControlType.ACTIVE);
+		defs[3] = new PortDefinition<>(Short.class, DataFlow.OUT, ControlType.PASSIVE);
+		
+		ReverseWire rw = new ReverseWire(defs, CombinatorOrientation.LEFT_TO_RIGHT);
+		
+		System.out.println(rw);
+	}
+	
 	private static void permuteWiresTest(int msgsPerProducer) {
 		final CountDownLatch startGate = new CountDownLatch(1);
 		final CountDownLatch endGate = new CountDownLatch(6);
@@ -1015,6 +1038,65 @@ public class Main {
 		long end = System.currentTimeMillis();
 				System.out.println("Permutation Wires execution time: " + (end - start)
 						+ " ms");		
+	}
+	
+	private static void joinPushWireTest() {
+		SimpleProducer p1 = new SimpleProducer(10, CombinatorOrientation.LEFT_TO_RIGHT);
+		SimpleProducer p2 = new SimpleProducer(10, CombinatorOrientation.LEFT_TO_RIGHT);
+		
+		JoinPushWire<Integer> joinWire = new JoinPushWire<>(Integer.class, 2, false, CombinatorOrientation.LEFT_TO_RIGHT);
+		
+		SimpleConsumer c = new SimpleConsumer(CombinatorOrientation.LEFT_TO_RIGHT);
+		
+		p1.combine(p2, CombinationType.VERTICAL)
+			.combine(joinWire, CombinationType.HORIZONTAL)
+			.combine(c, CombinationType.HORIZONTAL);
+		
+		Thread t1 = new Thread(p1);
+		Thread t2 = new Thread(p2);
+		
+		t1.start();
+		t2.start();
+		
+		try {
+			t1.join();
+			t2.join();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		
+		System.out.println("P1 failures: " + p1.failures);
+		System.out.println("P2 failures: " + p2.failures);
+	}
+	
+	private static void eliminationStackComponentTest(int producers, int msgs) {
+		final CountDownLatch startGate = new CountDownLatch(1);
+		final CountDownLatch endGate = new CountDownLatch(producers * 2);
+
+		EliminationStack<Integer> stack = new EliminationStack<>();
+
+		for (int i = 0; i < producers; i++) {
+			Producer p = new Producer(stack, msgs, startGate, endGate);
+			Consumer c = new Consumer(stack, msgs, startGate, endGate);
+			new Thread(p).start();
+			new Thread(c).start();
+		}
+
+		// run the test
+		try {
+			// back off to let all other threads initialise
+			Thread.sleep(500);
+		} catch (InterruptedException e) {
+		}
+
+		long start = System.currentTimeMillis();
+		startGate.countDown();
+		try {
+			endGate.await();
+		} catch (InterruptedException ex) {}
+		long end = System.currentTimeMillis();
+		System.out.println("Elimination Stack execution time: " + (end - start)
+				+ " ms");
 	}
 	
 	private static Combinator initProducers(int noOfProducers, int msgsPerProducer, 

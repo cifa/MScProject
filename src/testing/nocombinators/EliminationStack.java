@@ -3,7 +3,9 @@ package testing.nocombinators;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class EliminationStack<T> {
+import testing.IStack;
+
+public class EliminationStack<T> implements IStack<T> {
 
 	private final AtomicReference<Node<T>> head;
 	private final Eliminator<T> eliminator;

@@ -16,6 +16,7 @@ public class SimpleProducer extends Combinator implements Runnable {
 	
 	private Random rand = new Random();
 	private final int noOfMsgs;
+	public int failures;
 	
 	public SimpleProducer(int noOfMsgs, CombinatorOrientation orientation) {
 		super(orientation);
@@ -41,6 +42,7 @@ public class SimpleProducer extends Combinator implements Runnable {
 				getRightBoundary().send(new Message<Integer>(Integer.class, rand.nextInt(100)), 0);
 			} catch (MessageFailureException ex) {
 				i--;
+				failures++;
 //				System.out.println("producer backoff");
 			}
 		}

@@ -3,16 +3,18 @@ package testing.nocombinators;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 
+import testing.IStack;
+
 public class Producer implements Runnable {
 	
 	private final static Random rand = new Random();
 	
-	private final EliminationStack<Integer> stack;	
+	private final IStack<Integer> stack;	
 	private final int noOfMsgs;
 	private final CountDownLatch startGate;
 	private final CountDownLatch endGate;
 	
-	public Producer(EliminationStack<Integer> stack, int noOfMsgs, 
+	public Producer(IStack<Integer> stack, int noOfMsgs, 
 			CountDownLatch startGate, CountDownLatch endGate) {
 		
 		this.stack = stack;
