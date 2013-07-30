@@ -849,7 +849,7 @@ public class Main {
 
 		AdaptorPushWire<Integer> leftAdaptor = new AdaptorPushWire<>(
 				Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
-		CopyWire<Integer> copyWire = new CopyWire<>(Integer.class, 2, false, CombinatorOrientation.LEFT_TO_RIGHT);
+		CopyWire<Number> copyWire = new CopyWire<>(Number.class, 2, false, CombinatorOrientation.LEFT_TO_RIGHT);
 
 		producers.combine(leftAdaptor, CombinationType.HORIZONTAL)
 				.combine(copyWire, CombinationType.HORIZONTAL)
@@ -921,7 +921,7 @@ public class Main {
 		AdaptorPushWire<Integer> leftAdaptor = new AdaptorPushWire<>(Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
 		AdaptorPullWire<Integer> rightAdaptor= new AdaptorPullWire<>(Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
 		CopyWire<Integer> copyWire = new CopyWire<>(Integer.class, 2, false, CombinatorOrientation.LEFT_TO_RIGHT);
-		JoinPullWire<Integer> joinWire = new JoinPullWire<>(Integer.class, 2, false, CombinatorOrientation.LEFT_TO_RIGHT);
+		JoinPullWire<Integer> joinWire = new JoinPullWire<>(Integer.class, 2, false, CombinatorOrientation.LEFT_TO_RIGHT, 10);
 		MSQueue<Integer> q1 = new MSQueue<>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
 		MSQueue<Integer> q2 = new MSQueue<>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
 		Combinator queues = q1.combine(q2, CombinationType.VERTICAL);

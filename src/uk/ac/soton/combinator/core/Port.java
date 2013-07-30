@@ -46,7 +46,9 @@ public class Port<T> {
 			throw new UnsupportedOperationException("Passive port cannot actively send a message");
 		}
 		// DROP INVALID MESSAGE (is it OK to do that??)
-		if(! msg.isValidMessage()) return;
+		if(! msg.isMessageValid()) {
+			throw new InvalidMessageSentException();
+		}
 		
 		if(! msg.isTypeVerified()) {
 			if(msg.getMessageDataType().equals(portDataType)) {
@@ -64,7 +66,12 @@ public class Port<T> {
 		if(portControlType == ControlType.PASSIVE) {
 			throw new UnsupportedOperationException("Passive port cannot actively receive a message");
 		}
-		return (Message<? extends T>) connectedTo.getHandler().produce();
+		Message<? extends T> msg = (Message<? extends T>) connectedTo.getHandler().produce();
+		// DROP INVALID MESSAGE (is it OK to do that??)
+		if(! msg.isMessageValid()) {
+			throw new InvalidMessageReceivedException();
+		}
+		return msg;
 	}
 
 	static void connectPorts(Port<?> p1, Port<?> p2) throws IncompatiblePortsException {	

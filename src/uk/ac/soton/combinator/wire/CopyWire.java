@@ -50,17 +50,19 @@ public class CopyWire<T> extends Combinator {
 				try {
 					// make sure failure flag is reset
 					copyFailed = false;
+					final CountDownLatch copyStart = new CountDownLatch(1);
 					final CountDownLatch copyComplete = new CountDownLatch(noOfCopyPorts);
 					// start all copy runners (threads)
 					for(int i=0; i<noOfCopyPorts; i++) {
 						// create copy message by encapsulating the original one
 						Message<T> copyMsg = (Message<T>) new Message<>(msg);
-						CombinatorThreadPool.execute(new CopyRunner(copyMsg, i, copyComplete));
+						CombinatorThreadPool.execute(new CopyRunner(copyMsg, i, copyStart, copyComplete));
 					}
+					// allow runners to execute when all wrappers around the original
+					// mesage are initialised
+					copyStart.countDown();
 					// wait for all runners to complete
 					copyComplete.await();
-//					System.out.println(msg.getContent());
-//					Thread.sleep(1000);
 					// all done -> check for problems
 					if(copyFailed) {
 						throw ex;
@@ -88,21 +90,26 @@ public class CopyWire<T> extends Combinator {
 	
 	private class CopyRunner implements Runnable {
 		
+		private final CountDownLatch copyStart;
 		private final CountDownLatch copyComplete;
 		private final int portIndex;
 		private final Message<T> msg;
 		
-		public CopyRunner(Message<T> msg, int portIndex, CountDownLatch copyComplete) {
+		public CopyRunner(Message<T> msg, int portIndex, 
+				CountDownLatch copyStart, CountDownLatch copyComplete) {
+			
 			this.msg = msg;
 			this.portIndex = portIndex;
+			this.copyStart = copyStart;
 			this.copyComplete = copyComplete;
 		}
 		
 		@Override
 		public void run() {
 			try {
+				copyStart.await();
 				getRightBoundary().send(msg, portIndex);
-			} catch(MessageFailureException ex) {
+			} catch(MessageFailureException | InterruptedException ex) {
 				copyFailed = true;
 			} finally {
 				copyComplete.countDown();

@@ -19,10 +19,10 @@ public class SimpleConsumer extends Combinator {
 	@Override
 	protected List<Port<?>> initLeftBoundary() {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
-		ports.add(Port.getPassiveInPort(Integer.class, new PassiveInPortHandler<Integer>() {
+		ports.add(Port.getPassiveInPort(Number.class, new PassiveInPortHandler<Number>() {
 
 			@Override
-			public void accept(Message<? extends Integer> msg) {
+			public void accept(Message<? extends Number> msg) {
 				System.out.println(msg.getContent());
 			}
 		}));

@@ -43,7 +43,6 @@ public class ChoiceSendWire<T> extends Combinator {
 						// try to send the message on the current choice port
 						getRightBoundary().send(msg, portIndex);
 						// that's gone through -> return
-//						System.out.println("Succeeded on port " + portIndex);
 						return;
 					} catch(MessageFailureException ex) {
 						// no luck on this port -> move to the next choice
