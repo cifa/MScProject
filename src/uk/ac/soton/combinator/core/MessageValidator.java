@@ -1,6 +1,6 @@
 package uk.ac.soton.combinator.core;
 
-public interface MessageValidator {
+public interface MessageValidator<T> {
 
-	boolean validate(final Message<?>... msgs);
+	boolean validate(final T... contents);
 }

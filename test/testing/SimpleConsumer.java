@@ -23,7 +23,7 @@ public class SimpleConsumer extends Combinator {
 
 			@Override
 			public void accept(Message<? extends Number> msg) {
-				System.out.println(msg.getContent());
+				System.out.println(msg.get());
 			}
 		}));
 		return ports;

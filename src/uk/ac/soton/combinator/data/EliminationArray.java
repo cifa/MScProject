@@ -56,7 +56,7 @@ public class EliminationArray<T> extends Combinator {
 			@Override
 			public void accept(Message<? extends T> msg) throws MessageFailureException {
 				in.incrementAndGet();
-				T offer = msg.getContent();
+				T offer = msg.get();
 				long time = System.currentTimeMillis() + timeout;
 				boolean offered = false;
 				int slotIndex = -1;

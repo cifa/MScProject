@@ -46,12 +46,12 @@ public class Port<T> {
 			throw new UnsupportedOperationException("Passive port cannot actively send a message");
 		}
 		// DROP INVALID MESSAGE (is it OK to do that??)
-		if(! msg.isMessageValid()) {
+		if(msg.isCancelled()) {
 			throw new InvalidMessageSentException();
 		}
 		
 		if(! msg.isTypeVerified()) {
-			if(msg.getMessageDataType().equals(portDataType)) {
+			if(portDataType.isAssignableFrom(msg.getMessageDataType())) {
 				msg.setTypeVerified(true);
 			} else {
 				throw new IllegalArgumentException("Message<" + msg.getMessageDataType().getCanonicalName() 
@@ -68,7 +68,7 @@ public class Port<T> {
 		}
 		Message<? extends T> msg = (Message<? extends T>) connectedTo.getHandler().produce();
 		// DROP INVALID MESSAGE (is it OK to do that??)
-		if(! msg.isMessageValid()) {
+		if(msg.isCancelled()) {
 			throw new InvalidMessageReceivedException();
 		}
 		return msg;

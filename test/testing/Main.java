@@ -35,13 +35,13 @@ import uk.ac.soton.combinator.wire.SynchWire;
 public class Main {
 	
 	public static void main(String[] args) {
-		// simpleOneToOne();
+//		simpleOneToOne();
 //		simpleManyToOneWithPushAdaptor();
 //		simpleManyToOneWithPushAdaptor2();
 		// treiberStackWithMultipleProducersAndConsumers();
 		// boundedStackWithMultipleProducersAndConsumers();
 //	    eliminationStackWithMultipleProducersAndConsumers(100, 1000);
-//		treiberStackTest(1000, 10000);
+		treiberStackTest(1000, 10000);
 //		treiberStackTest(1000, 10000);
 //		treiberStackTest(1000, 10000);
 //		treiberStackTest(1000, 10000);
@@ -75,7 +75,7 @@ public class Main {
 //		synchWireTestRigtToLeft(100);
 //		copyWireTest(10, 100);
 //		copyAndJoinWithTwoStacksTest(10, 1);
-		copyAndJoinWithTwoQueuesTest(100,1000);
+//		copyAndJoinWithTwoQueuesTest(100,1000);
 //		permuteWirePortTest();
 //		permuteWiresTest(10);
 //		joinPushWireTest();

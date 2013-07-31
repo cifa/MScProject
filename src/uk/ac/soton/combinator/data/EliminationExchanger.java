@@ -60,7 +60,7 @@ public class EliminationExchanger<T> extends Combinator {
 				
 				int index = 0;
 				int fails = 0;
-				Node<T> node = new Node<T>(msg.getContent());
+				Node<T> node = new Node<T>(msg.get());
 				in.incrementAndGet();
 				
 				while(true) {

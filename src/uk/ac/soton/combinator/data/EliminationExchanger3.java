@@ -36,7 +36,7 @@ public class EliminationExchanger3<T> extends Combinator {
 			public void accept(Message<? extends T> msg)
 					throws MessageFailureException {
 				try {
-					if(exchanger.exchange(msg.getContent()) != null) {
+					if(exchanger.exchange(msg.get()) != null) {
 						throw msgEx;
 					}				
 				} catch (InterruptedException e) {

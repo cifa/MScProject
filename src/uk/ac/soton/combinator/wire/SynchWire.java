@@ -89,7 +89,7 @@ public class SynchWire<T> extends Combinator {
 					 * acquired successfully. If not the other thread should also throw 
 					 * an exception
 					 */
-					return new Message<T>(dataType, msg.getContent());
+					return new Message<T>(dataType, msg.get());
 				} catch (InterruptedException | TimeoutException e) {
 					// no exchange -> fail
 					throw ex;

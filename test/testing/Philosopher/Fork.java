@@ -14,10 +14,12 @@ import uk.ac.soton.combinator.core.Port;
 public class Fork extends Combinator {
 	
 	private final AtomicInteger holder;
+	private final int id;
 	private final MessageFailureException ex = new MessageFailureException();
 	
-	public Fork() {
+	public Fork(int id) {
 		holder = new AtomicInteger();
+		this.id = id;
 	}
 	
 	@Override
@@ -27,7 +29,7 @@ public class Fork extends Combinator {
 			// Philosophers can request the fork on port 0
 			@Override
 			public void accept(Message<? extends Integer> msg) {
-				if(!holder.compareAndSet(0, msg.getContent())) {
+				if(!holder.compareAndSet(0, msg.get())) {
 					throw ex;
 				}
 			}
@@ -36,7 +38,7 @@ public class Fork extends Combinator {
 			// Philosophers can release the fork on port 1
 			@Override
 			public void accept(Message<? extends Integer> msg) {
-				if(!holder.compareAndSet(msg.getContent(), 0)) {
+				if(!holder.compareAndSet(msg.get(), 0)) {
 					throw ex;
 				}
 			}

@@ -68,6 +68,6 @@ public class EliminationStack<T> extends Combinator implements IStack<T> {
 	@SuppressWarnings("unchecked")
 	@Override
 	public T pop() {
-		return (T) getRightBoundary().receive(1).getContent();
+		return (T) getRightBoundary().receive(1).get();
 	}
 }
