@@ -41,12 +41,12 @@ public class Main {
 		// treiberStackWithMultipleProducersAndConsumers();
 		// boundedStackWithMultipleProducersAndConsumers();
 //	    eliminationStackWithMultipleProducersAndConsumers(100, 1000);
-//		treiberStackTest(1000, 10000);
-//		treiberStackTest(1000, 10000);
-//		treiberStackTest(1000, 10000);
-//		treiberStackTest(1000, 10000);
-//		treiberStackTest(1000, 10000);
-//		treiberStackTest(1000, 10000);
+		treiberStackTest(1000, 10000);
+		treiberStackTest(1000, 10000);
+		treiberStackTest(1000, 10000);
+		treiberStackTest(1000, 10000);
+		treiberStackTest(1000, 10000);
+		treiberStackTest(1000, 10000);
 //		eliminationStackWithSemaphoresTest(200,100);
 //		eliminationStackWithSemaphoresTest(200,100);
 //		eliminationStackWithSemaphoresAndExchangerTest(1000,10000);
@@ -76,7 +76,7 @@ public class Main {
 //		copyWireTest(10, 100);
 //		copyAndJoinWithTwoStacksTest(10, 1);
 //		copyAndJoinWithTwoQueuesTest(100,1000);
-		permuteWirePortTest();
+//		permuteWirePortTest();
 //		permuteWiresTest(10);
 //		joinPushWireTest();
 //		reverseWirePortTest();
