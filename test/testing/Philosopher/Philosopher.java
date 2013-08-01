@@ -9,20 +9,22 @@ import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.MessageFailureException;
-import uk.ac.soton.combinator.core.MessageInvalidationCallback;
+import uk.ac.soton.combinator.core.MessageEventHandler;
 import uk.ac.soton.combinator.core.Port;
 
 public class Philosopher extends Combinator implements Runnable {
 	
-	private static final MessageInvalidationCallback<Integer> callback = 
-			new MessageInvalidationCallback<Integer>() {
+	private static final MessageEventHandler<Integer> callback = 
+			new MessageEventHandler<Integer>() {
 
 				@Override
-				public void messageInvalidated(Message<Integer> invalidatedMsg,
-						Integer msgContent) {
-					System.out.println("Request from Philosopher " + msgContent + " has been" +
+				public void messageInvalidated(Message<Integer> message, Integer content) {
+					System.out.println("Request from Philosopher " + content + " has been" +
 							" cancelled -> he's gonna STARVE");	
 				}
+
+				@Override
+				public void messageFullyAcknowledged(Message<Integer> message) {}
 			};
 	
 	private PhilosopherState state = PhilosopherState.THINKING;

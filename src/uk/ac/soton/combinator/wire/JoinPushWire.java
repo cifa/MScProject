@@ -16,11 +16,11 @@ import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.Port;
 
-public class JoinPushWire<T> extends Combinator {
+public class JoinPushWire<T> extends Combinator implements Runnable {
 	
 	private final Class<T> dataType;
 	private final int noOfJoinPorts;
-	private final CyclicBarrier barrier;
+	private volatile CyclicBarrier barrier;
 	private final ReentrantLock[] locks;
 	private final AtomicReferenceArray<Message<T>> joinMessages;
 	private final MessageFailureException ex = new MessageFailureException("Unable to join all messages (not equal)");
@@ -42,36 +42,7 @@ public class JoinPushWire<T> extends Combinator {
 		for(int i=0; i<noOfJoinPorts; i++) {
 			locks[i] = new ReentrantLock(fair);
 		}
-		barrier = new CyclicBarrier(noOfJoinPorts, new Runnable() {
-			
-			@SuppressWarnings("unchecked")
-			@Override
-			public void run() {
-				msgJoinSuccessful = true;
-				Message<T>[] msgs = (Message<T>[]) new Message<?>[JoinPushWire.this.noOfJoinPorts];
-				msgs[0] = joinMessages.get(0);
-				
-				for(int i=1; i<JoinPushWire.this.noOfJoinPorts; i++) {
-					msgs[i] = joinMessages.get(i);
-					if(!msgs[0].contentEquals(msgs[i])) {
-						msgJoinSuccessful = false;
-						break;
-					}
-				}
-				
-				if(msgJoinSuccessful) {
-					// we create a new join message from all received messages
-					final Message<T> joinMsg = new Message<>(msgs);
-					// ... and send it on
-					CombinatorThreadPool.execute(new Runnable() {					
-						@Override
-						public void run() {
-							getRightBoundary().send(joinMsg, 0);
-						}
-					});
-				}
-			}
-		});
+		barrier = new CyclicBarrier(noOfJoinPorts, this);
 	}
 
 	@Override
@@ -108,13 +79,50 @@ public class JoinPushWire<T> extends Combinator {
 						throw ex;
 					}
 				} catch (InterruptedException | BrokenBarrierException e) {
-					// this shouldn't really happen
 					new MessageFailureException("Barrier Broken");
 				} finally {
+					if(barrier.isBroken()) {
+						new CyclicBarrier(noOfJoinPorts, JoinPushWire.this);
+					}
 					locks[portIndex].unlock();
 				}
 			}
 		});
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public void run() {
+		msgJoinSuccessful = true;
+		Message<T>[] msgs = (Message<T>[]) new Message<?>[noOfJoinPorts];
+		msgs[0] = joinMessages.get(0);
+		
+		for(int i=1; i<noOfJoinPorts; i++) {
+			msgs[i] = joinMessages.get(i);
+			if(!msgs[0].contentEquals(msgs[i])) {
+				msgJoinSuccessful = false;
+				break;
+			}
+		}
+		
+		if(msgJoinSuccessful) {
+			// we create a new join message from all received messages
+			final Message<T> joinMsg = new Message<>(msgs);
+			// ... and send it on
+			CombinatorThreadPool.execute(new Runnable() {					
+				@Override
+				public void run() {
+					try {
+						getRightBoundary().send(joinMsg, 0);
+					} catch(MessageFailureException ex) {}
+				}
+			});
+		} else {
+			// FAILURE - invalidate all join messages
+			for(int i=0; i<noOfJoinPorts; i++) {
+				joinMessages.get(i).cancel(false);
+			}
+		}
 	}
 
 }

@@ -37,7 +37,7 @@ public class Message<T> implements Future<T> {
 	/* Invoked at most once when the message is invalidated (cancelled)
 	 * This callback is optional (producers don't have to provide one)
 	 */
-	private final MessageInvalidationCallback<T> invalidationCallback;
+	private final MessageEventHandler<T> messageCallback;
 	
 	/* Messages are type verified when they are sent through a port 
 	 * for the first time (type-safe combinations of ports ensure type
@@ -83,13 +83,13 @@ public class Message<T> implements Future<T> {
 		this(messageDataType, content, null);
 	}
 	
-	public Message(Class<T> messageDataType, T content, MessageInvalidationCallback<T> invalidationCallback) {
+	public Message(Class<T> messageDataType, T content, MessageEventHandler<T> messageCallback) {
 		if(messageDataType == null) {
 			throw new IllegalArgumentException("Message Data Type cannot be null");
 		}
 		this.messageDataType = messageDataType;
 		this.content = content;
-		this.invalidationCallback = invalidationCallback;
+		this.messageCallback = messageCallback;
 		this.messageState = new AtomicInteger(ACTIVE);
 		this.waiters = new ConcurrentLinkedQueue<>();
 	}
@@ -101,7 +101,7 @@ public class Message<T> implements Future<T> {
 	//TODO maybe, this shouldn't be public?? (would require package refactoring)
 	@SafeVarargs
 	public Message(Message<T>... msgs) {
-		// TODO do we copy the message content or set it to null?
+		// TODO copying the content of the first msg will only work for immutable objects
 		this(msgs[0].messageDataType, msgs[0].content);
 		encapsulatedMsgs = msgs;
 		// Message wrapper is type safe
@@ -135,7 +135,7 @@ public class Message<T> implements Future<T> {
 					 * This means that the next call to park() is guaranteed not to
 					 * block - get rid of it
 					 */
-					LockSupport.park();
+					LockSupport.park(this);
 				}
 				throw new CancellationException("Cannot access the " +
 						"content of an invalidated message");
@@ -146,7 +146,7 @@ public class Message<T> implements Future<T> {
 				if(runFullAcknowledgementTest()) {
 					//try to remove from waiters if fully acknowledged
 					if(! waiters.remove(Thread.currentThread())) {					
-						LockSupport.park();
+						LockSupport.park(this);
 					}
 					// fully acknowledged -> return content
 					break;
@@ -154,7 +154,7 @@ public class Message<T> implements Future<T> {
 			}
 
 			// wait for changes (either invalidation or full acknowledgement)
-			LockSupport.park();
+			LockSupport.park(this);
 		}
 		// we are fully acknowledged and can return the value
 		return content;
@@ -180,7 +180,7 @@ public class Message<T> implements Future<T> {
 			}
 			// we need to wait
 			waiters.add(Thread.currentThread());
-			LockSupport.parkNanos(unit.toNanos(timeout));
+			LockSupport.parkNanos(this, unit.toNanos(timeout));
 			
 			// re-check if still valid
 			if(isCancelled()) {
@@ -232,13 +232,13 @@ public class Message<T> implements Future<T> {
 				}
 			}
 			// invoke invalidation callback on this message (if any)
-			if(invalidationCallback != null) {
+			if(messageCallback != null) {
 				// execute the callback as a separate task
 				CombinatorThreadPool.execute(new Runnable() {
 					
 					@Override
 					public void run() {
-						invalidationCallback.messageInvalidated(Message.this, content);
+						messageCallback.messageInvalidated(Message.this, content);
 					}
 				});
 				
@@ -389,6 +389,18 @@ public class Message<T> implements Future<T> {
 				// dependant on any encapsulated/wrapper messages
 				encapsulatedMsgs = null;
 				wrapperMsgs = null;
+				
+				// invoke full acknowledgement callback on this message (if any)
+				if(messageCallback != null) {
+					// execute the callback as a separate task
+					CombinatorThreadPool.execute(new Runnable() {
+						
+						@Override
+						public void run() {
+							messageCallback.messageFullyAcknowledged(Message.this);
+						}
+					});	
+				}
 			}
 		}
 		return messageState.get() == FULLY_ACKNOWLEDGED;

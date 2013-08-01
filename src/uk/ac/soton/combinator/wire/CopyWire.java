@@ -2,6 +2,7 @@ package uk.ac.soton.combinator.wire;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -20,6 +21,7 @@ public class CopyWire<T> extends Combinator {
 	private final int noOfCopyPorts;
 	private final ReentrantLock mutexIn;
 	private volatile boolean copyFailed;
+	private final ConcurrentLinkedQueue<CopyRunner> runners;
 	
 	public CopyWire(Class<T> dataType, int noOfCopyPorts, boolean fair, CombinatorOrientation orientation) {
 		super(orientation);
@@ -32,6 +34,7 @@ public class CopyWire<T> extends Combinator {
 		this.dataType = dataType;
 		this.noOfCopyPorts = noOfCopyPorts;
 		mutexIn = new ReentrantLock(fair);
+		runners = new ConcurrentLinkedQueue<>();
 	}
 	
 	@Override
@@ -56,7 +59,9 @@ public class CopyWire<T> extends Combinator {
 					for(int i=0; i<noOfCopyPorts; i++) {
 						// create copy message by encapsulating the original one
 						Message<T> copyMsg = (Message<T>) new Message<>(msg);
-						CombinatorThreadPool.execute(new CopyRunner(copyMsg, i, copyStart, copyComplete));
+						CopyRunner runner = new CopyRunner(copyMsg, i, copyStart, copyComplete);
+						runners.add(runner);
+						CombinatorThreadPool.execute(runner);
 					}
 //					System.out.println(msg);
 					// allow runners to execute when all wrappers around the original
@@ -91,6 +96,9 @@ public class CopyWire<T> extends Combinator {
 	
 	private class CopyRunner implements Runnable {
 		
+		private volatile Thread executor;
+		private volatile boolean cancelled;
+		
 		private final CountDownLatch copyStart;
 		private final CountDownLatch copyComplete;
 		private final int portIndex;
@@ -107,12 +115,28 @@ public class CopyWire<T> extends Combinator {
 		
 		@Override
 		public void run() {
-			try {
-				copyStart.await();
-				getRightBoundary().send(msg, portIndex);
-			} catch(MessageFailureException | InterruptedException ex) {
-				copyFailed = true;
-			} finally {
+			executor = Thread.currentThread();
+			if(! cancelled) {
+				try {
+					copyStart.await();
+					getRightBoundary().send(msg, portIndex);
+				} catch(MessageFailureException | InterruptedException ex) {
+					copyFailed = true;
+				} finally {
+					runners.remove(this);
+					if(msg.isCancelled()) {
+						CopyRunner runner;
+						while((runner = runners.poll()) != null) {
+							runner.cancelled = true;
+							if(runner.executor != null) {
+								runner.executor.interrupt();
+							}
+						}
+					}
+					copyComplete.countDown();
+				}
+			} else {
+				runners.remove(this);
 				copyComplete.countDown();
 			}
 		}

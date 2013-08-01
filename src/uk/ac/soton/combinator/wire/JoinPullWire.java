@@ -100,9 +100,16 @@ public class JoinPullWire<T> extends Combinator {
 							/* TODO What if we didn't check for equality?? We would 
 							 * have a join message with (potentially) unequal contents
 							 * but the consumer could eventually decide if that's ok.
+							 * (This wouldn't work with the current implementation of
+							 * failure handling where fully acknowledged msg removes
+							 * all associations with encapsulated/wrapper messages)
 							 */
 							for(int i=1; i<noOfJoinPorts; i++) {
 								if(!joinMessages[0].contentEquals(joinMessages[i])) {
+									// FAILURE - invalidate all join messages
+									for(Message<T> msg : joinMessages) {
+										msg.cancel(false);
+									}
 									throw ex;
 								}
 							}
