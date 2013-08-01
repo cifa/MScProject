@@ -6,6 +6,7 @@ import java.util.List;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.DataFlow;
+import uk.ac.soton.combinator.core.InvalidMessageSentException;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
@@ -39,6 +40,10 @@ public class ChoiceSendWire<T> extends Combinator {
 				int portIndex = 0;
 				//TODO do we really wanna loop forever if all choices always fail?
 				while(true) {
+					// give up on cancelled messages
+					if(msg.isCancelled()) {
+						throw new InvalidMessageSentException();
+					}
 					try {
 						// try to send the message on the current choice port
 						getRightBoundary().send(msg, portIndex);

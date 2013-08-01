@@ -41,7 +41,7 @@ public class Main {
 		// treiberStackWithMultipleProducersAndConsumers();
 		// boundedStackWithMultipleProducersAndConsumers();
 //	    eliminationStackWithMultipleProducersAndConsumers(100, 1000);
-		treiberStackTest(1000, 10000);
+//		treiberStackTest(1000, 10000);
 //		treiberStackTest(1000, 10000);
 //		treiberStackTest(1000, 10000);
 //		treiberStackTest(1000, 10000);
@@ -58,12 +58,12 @@ public class Main {
 //		eliminationStackTest(1000, 1000);
 //		eliminationStackTest(1000, 1000);
 //		eliminationStackArrayFirstTest(100, 1000);
-//		eliminationBackOffStackTest(1000, 10000);
-//		eliminationBackOffStackTest(1000, 10000);
-//		eliminationBackOffStackTest(1000, 10000);
-//		eliminationBackOffStackTest(1000, 10000);
-//		eliminationBackOffStackTest(1000, 10000);
-//		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 10000);
 //		eliminationArrayTest(10, 100);
 //		eliminationExchangerTest(1000, 10000);
 //		eliminationExchangerTest(1000, 10000);
@@ -705,8 +705,8 @@ public class Main {
 		AdaptorPullWire<Integer> rightAdaptor = new AdaptorPullWire<>(
 				Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
 
-		EliminationExchanger3<Integer> eliminationExchanger = 
-				new EliminationExchanger3<>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
+		EliminationExchanger2<Integer> eliminationExchanger = 
+				new EliminationExchanger2<>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
 
 
 		producers.combine(leftAdaptor, CombinationType.HORIZONTAL)

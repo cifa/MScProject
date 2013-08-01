@@ -16,6 +16,10 @@ import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
 import uk.ac.soton.combinator.core.RequestFailureException;
 
+/**
+ * Well-performing elimination exchanger inspired by the 
+ * algorithm used in java.util.concurrent.Exchanger 
+ */
 public class EliminationExchanger2<T> extends Combinator {
 	
 	private final static int OFFERED = 0;

@@ -16,6 +16,9 @@ import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
 import uk.ac.soton.combinator.core.RequestFailureException;
 
+/**
+ * First inefficient version 
+ */
 @Deprecated
 public class EliminationExchanger<T> extends Combinator {
 	

@@ -44,13 +44,13 @@ public class PhilosophersTest {
 		phils.combine(philForksWiring, CombinationType.HORIZONTAL)
 				.combine(forks, CombinationType.HORIZONTAL);
 		
-		new Thread(phil1).start();
-		new Thread(phil2).start();
-		new Thread(phil3).start();
-		new Thread(phil4).start();
-		new Thread(phil5).start();
+		new Thread(phil1, "Phil 1").start();
+		new Thread(phil2, "Phil 2").start();
+		new Thread(phil3, "Phil 3").start();
+		new Thread(phil4, "Phil 4").start();
+		new Thread(phil5, "Phil 5").start();
 		
-		Thread.sleep(15000);
+		Thread.sleep(11000);
 		// always shut down all threads
 		CombinatorThreadPool.shutdown();
 	}

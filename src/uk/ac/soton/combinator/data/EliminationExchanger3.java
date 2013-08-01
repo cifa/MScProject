@@ -12,6 +12,10 @@ import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
 import uk.ac.soton.combinator.core.RequestFailureException;
 
+/**
+ * Just for testing purposes - uses java.util.concurrent.Exchanger
+ * (slow)
+ */
 @Deprecated
 public class EliminationExchanger3<T> extends Combinator {
 	

@@ -3,6 +3,8 @@ package testing.Philosopher;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import uk.ac.soton.combinator.core.Combinator;
@@ -12,6 +14,8 @@ import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.Port;
 
 public class Fork extends Combinator {
+	
+	private static final Random rand = new Random();
 	
 	private final AtomicInteger holder;
 	private final int id;
@@ -29,7 +33,16 @@ public class Fork extends Combinator {
 			// Philosophers can request the fork on port 0
 			@Override
 			public void accept(Message<? extends Integer> msg) {
-				if(!holder.compareAndSet(0, msg.get())) {
+				if(rand.nextInt(1000) > 990) {
+					System.out.println("Fork " + id + " CANCELLING message");
+					msg.cancel(false);
+				}
+				try {
+					if(!holder.compareAndSet(0, msg.get())) {
+						throw ex;
+					}
+				} catch(CancellationException e) {
+					System.out.println("Fork " + id + " detected CANCELLED message");
 					throw ex;
 				}
 			}
