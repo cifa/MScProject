@@ -53,7 +53,6 @@ public class ChoiceSendWire<T> extends Combinator {
 						// no luck on this port -> move to the next choice
 						if(++portIndex == noOfChoices) {
 							portIndex = 0;
-//							System.out.println("All choices failed");
 						}
 					}
 				}

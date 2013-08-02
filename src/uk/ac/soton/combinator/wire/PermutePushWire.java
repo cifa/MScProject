@@ -14,6 +14,11 @@ import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.Port;
 
+/**
+ * Initial attempt at permute wires - not very flexible
+ * Use <code>PermuteWire</code> instead
+ */
+@Deprecated
 public class PermutePushWire extends Combinator {
 	
 	private final int[] portPermutations;

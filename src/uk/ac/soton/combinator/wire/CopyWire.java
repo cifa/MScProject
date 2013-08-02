@@ -58,7 +58,6 @@ public class CopyWire<T> extends Combinator {
 						Message<T> copyMsg = (Message<T>) new Message<>(msg);
 						CombinatorThreadPool.execute(new CopyRunner(copyMsg, i, copyStart, copyComplete));
 					}
-//					System.out.println(msg);
 					// allow runners to execute when all wrappers around the original
 					// mesage are initialised
 					copyStart.countDown();

@@ -394,9 +394,6 @@ public class Message<T> implements Future<T> {
 					if(! ack) break;
 				}
 			} else if(wrappers != null) {
-				if(messageCallback == null) {
-					throw new RuntimeException("callback null");
-				}
 				// a bottom-of-the-hierarchy msg that has been wrapped -> are all wrappers acknowledged?
 				for(Message<T> msg : wrappers) {
 					ack = msg.isWrapperAck();

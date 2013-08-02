@@ -6,6 +6,7 @@ import java.util.List;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.DataFlow;
+import uk.ac.soton.combinator.core.InvalidMessageReceivedException;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
@@ -52,14 +53,16 @@ public class ChoiceReceiveWire<T> extends Combinator {
 						// try to receive a message on the current choice port
 						@SuppressWarnings("unchecked")
 						Message<T> msg = (Message<T>) getLeftBoundary().receive(portIndex);
-//						System.out.println("Succeeded on port " + portIndex);
 						// we've got a message -> return it
 						return msg;
+					} catch(InvalidMessageReceivedException ex) {
+						// Invalid message means we should not retry on
+						// a different port. Just propagate the exception.
+						throw ex;
 					} catch(RequestFailureException ex) {
 						// no luck on this port -> move to the next choice
 						if(++portIndex == noOfChoices) {
 							portIndex = 0;
-//							System.out.println("All choices failed");
 						}
 					}
 				}

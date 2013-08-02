@@ -80,7 +80,6 @@ public class JoinPullWire<T> extends Combinator {
 			public Message<T> produce() throws RequestFailureException {
 				mutexOut.lock();
 				try {
-//					Thread.sleep(100);
 					int retriesLeft = retries;
 					// start fetching on all parts
 					noOfMsgToFetch.set(noOfJoinPorts);

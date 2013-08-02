@@ -83,12 +83,6 @@ public class SynchWire<T> extends Combinator {
 					} else {
 						msg = exchanger.exchange(null);
 					}
-					/*
-					 * TODO if the getContent() can fail then we should delay the exit
-					 * of the other thread involved in the exchange till the content is
-					 * acquired successfully. If not the other thread should also throw 
-					 * an exception
-					 */
 					return new Message<T>(dataType, msg.get());
 				} catch (InterruptedException | TimeoutException e) {
 					// no exchange -> fail

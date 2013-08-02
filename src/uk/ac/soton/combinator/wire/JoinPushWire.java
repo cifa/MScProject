@@ -18,8 +18,8 @@ import uk.ac.soton.combinator.core.Port;
 
 public class JoinPushWire<T> extends Combinator implements Runnable {
 	
-	private static int counter = 0;
-	private final int id = ++counter;
+//	private static int counter = 0;
+//	private final int id = ++counter;
 	
 	private final Class<T> dataType;
 	private final int noOfJoinPorts;
@@ -74,7 +74,7 @@ public class JoinPushWire<T> extends Combinator implements Runnable {
 			public void accept(Message<? extends T> msg)
 					throws MessageFailureException {
 				locks[portIndex].lock();
-				char pos = portIndex == 0 ? 'T' : 'B';
+//				char pos = portIndex == 0 ? 'T' : 'B';
 				try {
 //					System.out.println("Join entry to " + id + pos + ": " + msg);
 					joinMessages.set(portIndex, (Message<T>) msg);
