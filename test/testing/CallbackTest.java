@@ -5,6 +5,7 @@ import java.util.concurrent.CountDownLatch;
 import uk.ac.soton.combinator.core.CombinationType;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
+import uk.ac.soton.combinator.core.CombinatorThreadPool;
 import uk.ac.soton.combinator.wire.AdaptorPushWire;
 import uk.ac.soton.combinator.wire.CopyWire;
 import uk.ac.soton.combinator.wire.JoinPushWire;
@@ -59,6 +60,8 @@ public class CallbackTest {
 				+ p2.failures+ " failures");
 		System.out.println("Producer 3: " + p3.successes + " successes and " 
 				+ p3.failures+ " failures");
+		
+		CombinatorThreadPool.shutdown();
 	}
 
 }

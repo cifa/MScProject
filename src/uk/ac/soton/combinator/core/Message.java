@@ -74,7 +74,9 @@ public class Message<T> implements Future<T> {
 	 * one of the get() methods when the message is not fully acknowledged
 	 * yet.
 	 */
-	private final ConcurrentLinkedQueue<Thread> waiters; 
+	private final ConcurrentLinkedQueue<Thread> waiters;
+	
+	private volatile Thread currentCarrier;
 	
 	
 	//******** CONSTRUCTORS **************
@@ -107,10 +109,20 @@ public class Message<T> implements Future<T> {
 		// Message wrapper is type safe
 		setTypeVerified(true);
 		// assoc the encapsulated msgs with this wrapper
+		boolean valid = true;
 		for(Message<T> msg : msgs) {
 			msg.addOuterWrapperMessage(this);
+			// has any of the encapsulated msgs just been cancelled?
+			valid = valid && !msg.isCancelled();
 			// encapsulated msgs must be active
 			msg.messageState.set(ACTIVE);
+			// only top level msgs are carried
+			msg.currentCarrier = null;
+			
+		}
+		// cannot build a valid msg from invalidated ones
+		if(! valid) {
+			cancel(false);
 		}
 	}
 	
@@ -220,6 +232,11 @@ public class Message<T> implements Future<T> {
 			encapsulatedMsgs = null;
 			wrapperMsgs = null;
 			
+			if(currentCarrier != null) {
+				currentCarrier.interrupt();
+				currentCarrier = null;
+			}
+			
 			/* Unpark any threads waiting to get the content - they will
 			 * throw a CancellationException as the message is now invalid (cancelled)
 			 */
@@ -285,10 +302,7 @@ public class Message<T> implements Future<T> {
 	
 	@Override
 	public String toString() {
-		if(wrapperMsgs == null ) {
-			return "NO WRAPPERS";
-		}
-		return "WRAPPER COUNT: " + wrapperMsgs.size();
+		return content + " " + currentCarrier;
 	}
 	
 	/* TODO we cannot stop the validator from exposing the message content(s)
@@ -329,7 +343,11 @@ public class Message<T> implements Future<T> {
 				}
 			}
 		}
-		return wrapperMsgs.add(wrapperMsg);
+		try {
+			return wrapperMsgs.add(wrapperMsg);	
+		} catch(NullPointerException ex) {
+			return false;
+		}	
 	}
 
 	/*
@@ -343,6 +361,10 @@ public class Message<T> implements Future<T> {
 	
 	boolean isTypeVerified() {
 		return typeVerified;
+	}
+	
+	void setCurrentCarrier(Thread t) {
+		currentCarrier = t;
 	}
 	
 	private synchronized boolean runFullAcknowledgementTest() {
@@ -372,6 +394,9 @@ public class Message<T> implements Future<T> {
 					if(! ack) break;
 				}
 			} else if(wrappers != null) {
+				if(messageCallback == null) {
+					throw new RuntimeException("callback null");
+				}
 				// a bottom-of-the-hierarchy msg that has been wrapped -> are all wrappers acknowledged?
 				for(Message<T> msg : wrappers) {
 					ack = msg.isWrapperAck();
@@ -389,6 +414,8 @@ public class Message<T> implements Future<T> {
 				// dependant on any encapsulated/wrapper messages
 				encapsulatedMsgs = null;
 				wrapperMsgs = null;
+				
+				currentCarrier = null;
 				
 				// invoke full acknowledgement callback on this message (if any)
 				if(messageCallback != null) {

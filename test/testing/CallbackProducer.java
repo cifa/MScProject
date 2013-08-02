@@ -45,34 +45,34 @@ public class CallbackProducer extends Combinator implements Runnable, MessageEve
 	@Override
 	public void run() {
 		executor = Thread.currentThread();
-		for (int i = 0; i < (noOfMsgs + failures); i++) {
+		while (successes < noOfMsgs) {
 			try {
-				int content = rand.nextInt(2);
-				System.out.println("Sending -> " + executor.getName() + " (" + content + ")");
+				int content = rand.nextInt(100);
+//				System.out.println("Sending -> " + executor.getName() + " (" + content + ")");
 				getRightBoundary().send(new Message<Integer>(Integer.class, content, this), 0);
 //				System.out.println("gone through -> " + executor.getName());
 			} catch (MessageFailureException ex) {
 //				System.out.println(ex.getMessage() + " -> " + executor.getName());
 			}
-//			System.out.println("parking -> " + executor.getName());
+
 			synchronized(this) {
 				while(! messageHandled) {
 					try {
+//						System.out.println("WAITING -> " + executor.getName());
 						wait();
 					} catch (InterruptedException e) {}
 				}
 				messageHandled = false;
 			}
-//			LockSupport.park(this);			
-///			System.out.println("unparked -> " + executor.getName());
 		}
+		System.out.println(executor.getName() + " EXIT");
 		endGate.countDown();
 	}
 
 	@Override
 	public void messageInvalidated(Message<Integer> message, Integer content) {
 		failures++;
-		System.out.println("F -> " + executor.getName() + " (" + content + ")");
+//		System.out.println("F -> " + executor.getName() + " (" + content + ")");
 		synchronized(this) {
 			messageHandled = true;
 			notifyAll();
@@ -83,11 +83,16 @@ public class CallbackProducer extends Combinator implements Runnable, MessageEve
 	@Override
 	public void messageFullyAcknowledged(Message<Integer> message) {
 		successes++;
-		System.out.println("S -> " + executor.getName()  + " (" + message.get() + ")");
+//		System.out.println("S -> " + executor.getName()  + " (" + message.get() + ") - succ: " + successes);
 		synchronized(this) {
 			messageHandled = true;
 			notifyAll();
 		}
 //		LockSupport.unpark(executor);
+	}
+	
+	@Override
+	public String toString() {
+		return executor.getName();
 	}
 }

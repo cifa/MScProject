@@ -45,6 +45,9 @@ public class Port<T> {
 		if(portControlType == ControlType.PASSIVE) {
 			throw new UnsupportedOperationException("Passive port cannot actively send a message");
 		}
+
+		msg.setCurrentCarrier(Thread.currentThread());
+		
 		// DROP INVALID MESSAGE (is it OK to do that??)
 		if(msg.isCancelled()) {
 			throw new InvalidMessageSentException();
@@ -67,10 +70,14 @@ public class Port<T> {
 			throw new UnsupportedOperationException("Passive port cannot actively receive a message");
 		}
 		Message<? extends T> msg = (Message<? extends T>) connectedTo.getHandler().produce();
+		
+		msg.setCurrentCarrier(Thread.currentThread());
+		
 		// DROP INVALID MESSAGE (is it OK to do that??)
 		if(msg.isCancelled()) {
 			throw new InvalidMessageReceivedException();
 		}
+	
 		return msg;
 	}
 
