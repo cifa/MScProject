@@ -5,6 +5,7 @@ import java.util.concurrent.CountDownLatch;
 
 import testing.IStack;
 import uk.ac.soton.combinator.core.Message;
+import uk.ac.soton.combinator.core.MessagePool;
 
 public class MessageProducer implements Runnable  {
 
@@ -29,7 +30,7 @@ public class MessageProducer implements Runnable  {
 			startGate.await();
 			try {
 				for(int i=0; i<noOfMsgs; i++) {
-					stack.push(new Message<Integer>(Integer.class, rand.nextInt(100)));
+					stack.push(MessagePool.createMessage(Integer.class, rand.nextInt(100)));
 				}
 			} finally {
 				endGate.countDown();

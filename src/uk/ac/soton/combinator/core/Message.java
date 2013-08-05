@@ -19,26 +19,26 @@ public class Message<T> implements Future<T> {
 	 * that is has not been either fully acknowledged or 
 	 * cancelled (invalidated)
 	 */
-	private static final int ACTIVE = 0;
+	static final int ACTIVE = 0;
 	
 	// Indicates that the message has been invalidated (cancelled)
-	private static final int CANCELLED = 1;
+	static final int CANCELLED = 1;
 	
 	/* Indicates that this message and all other related messages have been
 	 * acknowledged and the message content can be safely retrieved
 	 */
-	private static final int FULLY_ACKNOWLEDGED = 2;
+	static final int FULLY_ACKNOWLEDGED = 2;
 	
 	// hold the current state of the message (one of the 3 above)
-	private final AtomicInteger messageState;
+	final AtomicInteger messageState;
 	
-	private final Class<T> messageDataType;
-	private final T content;
+	volatile Class<T> messageDataType;
+	volatile T content;
 	
 	/* Invoked at most once when the message is invalidated (cancelled)
 	 * This callback is optional (producers don't have to provide one)
 	 */
-	private final MessageEventHandler<T> messageCallback;
+	volatile MessageEventHandler<T> messageCallback;
 	
 	/* Messages are type verified when they are sent through a port 
 	 * for the first time (type-safe combinations of ports ensure type
@@ -53,7 +53,7 @@ public class Message<T> implements Future<T> {
 	 * doesn't mean that the content can be retrieved as the message might 
 	 * need to wait for other related messages to be also acknowledged
 	 */
-	private volatile boolean acknowledged;
+	volatile boolean acknowledged;
 	
 	/* Denotes the thread that is currently executing the full acknowledgement
 	 * check on this message. If this message is a (top level) wrapper message 
@@ -66,10 +66,10 @@ public class Message<T> implements Future<T> {
 	private volatile Thread fullAcknowledgementRunner;
 	
 	// This message is wrapped around these messages
-	private volatile Message<T>[] encapsulatedMsgs;
+	volatile Message<T>[] encapsulatedMsgs;
 	
 	// List of messages (wrappers) that are wrapped around this messages
-	private volatile Set<Message<T>> wrapperMsgs;	
+	volatile Set<Message<T>> wrapperMsgs;	
 	
 	/* Queue of threads trying to retrieve the message content through
 	 * one of the get() methods when the message is not fully acknowledged
@@ -77,58 +77,61 @@ public class Message<T> implements Future<T> {
 	 */
 	private final ConcurrentLinkedQueue<Thread> waiters;
 	
-	private volatile Thread currentCarrier;
+	volatile Thread currentCarrier;
 	
 	
 	//******** CONSTRUCTORS **************
-
-	public Message(Class<T> messageDataType, T content) {
-		this(messageDataType, content, null);
-	}
 	
-	public Message(Class<T> messageDataType, T content, MessageEventHandler<T> messageCallback) {
-		if(messageDataType == null) {
-			throw new IllegalArgumentException("Message Data Type cannot be null");
-		}
-		this.messageDataType = messageDataType;
-		this.content = content;
-		this.messageCallback = messageCallback;
+	public Message() {
 		this.messageState = new AtomicInteger(ACTIVE);
 		this.waiters = new ConcurrentLinkedQueue<>();
-		
 		count.incrementAndGet();
-		MessagePool.test(this);
 	}
-	
-	/**
-	 * Constructor used by copy and join wires to wrap other messages
-	 * @param msgs  arbitrary number of messages to wrap (at least one) 
-	 */
-	//TODO maybe, this shouldn't be public?? (would require package refactoring)
-	@SafeVarargs
-	public Message(Message<T>... msgs) {
-		// TODO copying the content of the first msg will only work for immutable objects
-		this(msgs[0].messageDataType, msgs[0].content);
-		encapsulatedMsgs = msgs;
-		// Message wrapper is type safe
-		setTypeVerified(true);
-		// assoc the encapsulated msgs with this wrapper
-		boolean valid = true;
-		for(Message<T> msg : msgs) {
-			msg.addOuterWrapperMessage(this);
-			// has any of the encapsulated msgs just been cancelled?
-			valid = valid && !msg.isCancelled();
-			// encapsulated msgs must be active
-			msg.messageState.set(ACTIVE);
-			// only top level msgs are carried
-			msg.currentCarrier = null;
-			
-		}
-		// cannot build a valid msg from invalidated ones
-		if(! valid) {
-			cancel(false);
-		}
-	}
+
+//	public Message(Class<T> messageDataType, T content) {
+//		this(messageDataType, content, null);
+//	}
+//	
+//	public Message(Class<T> messageDataType, T content, MessageEventHandler<T> messageCallback) {
+//		if(messageDataType == null) {
+//			throw new IllegalArgumentException("Message Data Type cannot be null");
+//		}
+//		this.messageDataType = messageDataType;
+//		this.content = content;
+//		this.messageCallback = messageCallback;
+//		this.messageState = new AtomicInteger(ACTIVE);
+//		this.waiters = new ConcurrentLinkedQueue<>();
+//	}
+//	
+//	/**
+//	 * Constructor used by copy and join wires to wrap other messages
+//	 * @param msgs  arbitrary number of messages to wrap (at least one) 
+//	 */
+//	//TODO maybe, this shouldn't be public?? (would require package refactoring)
+//	@SafeVarargs
+//	public Message(Message<T>... msgs) {
+//		// TODO copying the content of the first msg will only work for immutable objects
+//		this(msgs[0].messageDataType, msgs[0].content);
+//		encapsulatedMsgs = msgs;
+//		// Message wrapper is type safe
+//		setTypeVerified(true);
+//		// assoc the encapsulated msgs with this wrapper
+//		boolean valid = true;
+//		for(Message<T> msg : msgs) {
+//			msg.addOuterWrapperMessage(this);
+//			// has any of the encapsulated msgs just been cancelled?
+//			valid = valid && !msg.isCancelled();
+//			// encapsulated msgs must be active
+//			msg.messageState.set(ACTIVE);
+//			// only top level msgs are carried
+//			msg.currentCarrier = null;
+//			
+//		}
+//		// cannot build a valid msg from invalidated ones
+//		if(! valid) {
+//			cancel(false);
+//		}
+//	}
 	
 	//********** METHODS ***************
 

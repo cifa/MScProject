@@ -11,6 +11,7 @@ import uk.ac.soton.combinator.core.CombinatorThreadPool;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.MessageFailureException;
+import uk.ac.soton.combinator.core.MessagePool;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.Port;
 
@@ -55,7 +56,7 @@ public class CopyWire<T> extends Combinator {
 					// start all copy runners (threads)
 					for(int i=0; i<noOfCopyPorts; i++) {
 						// create copy message by encapsulating the original one
-						Message<T> copyMsg = (Message<T>) new Message<>(msg);
+						Message<T> copyMsg = (Message<T>) MessagePool.createMessage(msg);
 						CombinatorThreadPool.execute(new CopyRunner(copyMsg, i, copyStart, copyComplete));
 					}
 					// allow runners to execute when all wrappers around the original

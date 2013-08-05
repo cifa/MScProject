@@ -8,7 +8,7 @@ import uk.ac.soton.combinator.core.CombinationType;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.DataFlow;
-import uk.ac.soton.combinator.core.Message;
+import uk.ac.soton.combinator.core.MessagePool;
 import uk.ac.soton.combinator.core.Port;
 import uk.ac.soton.combinator.data.BackOffTreiberStack;
 import uk.ac.soton.combinator.data.EliminationExchanger2;
@@ -62,7 +62,7 @@ public class EliminationStack<T> extends Combinator implements IStack<T> {
 
 	@Override
 	public void push(T value) {
-		getRightBoundary().send(new Message<Object>(Object.class, value), 0);
+		getRightBoundary().send(MessagePool.createMessage(Object.class, value), 0);
 	}
 
 	@SuppressWarnings("unchecked")

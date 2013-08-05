@@ -10,6 +10,7 @@ import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.MessageEventHandler;
+import uk.ac.soton.combinator.core.MessagePool;
 import uk.ac.soton.combinator.core.Port;
 
 public class Philosopher extends Combinator implements Runnable {
@@ -59,7 +60,7 @@ public class Philosopher extends Combinator implements Runnable {
 				System.out.println("Philosopher " + id + " is trying to get the forks");
 				try {
 					// grab the forks
-					getRightBoundary().send(new Message<Integer>(Integer.class, id, callback), 0);
+					getRightBoundary().send(MessagePool.createMessage(Integer.class, id, callback), 0);
 					state = PhilosopherState.EATING;
 					System.out.println("Philosopher " + id + " has acquired both forks");
 				} catch (MessageFailureException ex) {
@@ -68,7 +69,7 @@ public class Philosopher extends Combinator implements Runnable {
 			} else {
 				System.out.println("Philosopher " + id + " has finished EATING now");
 				// return the forks
-				getRightBoundary().send(new Message<Integer>(Integer.class, id), 1);
+				getRightBoundary().send(MessagePool.createMessage(Integer.class, id), 1);
 				state = PhilosopherState.THINKING;
 				System.out.println("Philosopher " + id + " has return the forks");
 			}
@@ -81,7 +82,7 @@ public class Philosopher extends Combinator implements Runnable {
 		// make sure you don't keep the forks when you leave
 		if(state == PhilosopherState.EATING) {
 			// return the forks
-			getRightBoundary().send(new Message<Integer>(Integer.class, id), 1);
+			getRightBoundary().send(MessagePool.createMessage(Integer.class, id), 1);
 		}
 	}
 

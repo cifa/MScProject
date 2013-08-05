@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import uk.ac.soton.combinator.core.Message;
+import uk.ac.soton.combinator.core.MessagePool;
 import uk.ac.soton.combinator.core.MessageValidator;
 
 public class InvalidationTest {
@@ -16,9 +17,9 @@ public class InvalidationTest {
 
 	public static void main(String[] args) {
 		
-		final Message<Integer> msg1 = new Message<>(Integer.class, 6);
-		final Message<Integer> msg2 = new Message<>(msg1);
-		final Message<Integer> msg3 = new Message<>(msg1);
+		final Message<Integer> msg1 = MessagePool.createMessage(Integer.class, 6);
+		final Message<Integer> msg2 = MessagePool.createMessage(msg1);
+		final Message<Integer> msg3 = MessagePool.createMessage(msg1);
 		
 		for(int i=0; i<20;i++) {
 			worker.execute(new Runnable() {

@@ -12,6 +12,7 @@ import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.CombinatorThreadPool;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
+import uk.ac.soton.combinator.core.MessagePool;
 import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
 import uk.ac.soton.combinator.core.RequestFailureException;
@@ -112,8 +113,8 @@ public class JoinPullWire<T> extends Combinator {
 									throw ex;
 								}
 							}
-							// return a new join message
-							return new Message<T>(Arrays.copyOf(joinMessages, joinMessages.length));					
+							// return a new join message	
+							return MessagePool.createMessage(Arrays.copyOf(joinMessages, joinMessages.length));
 						} else {
 							// some msgs not fetched -> let's back off and retry
 							if(retries < 0 || --retriesLeft >= 0) {

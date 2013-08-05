@@ -8,6 +8,7 @@ import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
+import uk.ac.soton.combinator.core.MessagePool;
 import uk.ac.soton.combinator.core.Port;
 import uk.ac.soton.combinator.core.RequestFailureException;
 
@@ -43,6 +44,7 @@ public class PullConsumer<T> extends Combinator implements Runnable {
 			try {
 				@SuppressWarnings("unchecked")
 				Message<T> msg = (Message<T>) getLeftBoundary().receive(0);
+				MessagePool.recycle(msg);
 //				System.out.println(msg.getContent());
 			} catch (RequestFailureException ex) {
 				i--;

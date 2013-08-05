@@ -11,6 +11,7 @@ import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.MessageEventHandler;
+import uk.ac.soton.combinator.core.MessagePool;
 import uk.ac.soton.combinator.core.Port;
 
 public class CallbackProducer extends Combinator implements Runnable, MessageEventHandler<Integer> {
@@ -47,7 +48,7 @@ public class CallbackProducer extends Combinator implements Runnable, MessageEve
 			try {
 				int content = rand.nextInt(100);
 //				System.out.println("Sending -> " + executor.getName() + " (" + content + ")");
-				getRightBoundary().send(new Message<Integer>(Integer.class, content, this), 0);
+				getRightBoundary().send(MessagePool.createMessage(Integer.class, content, this), 0);
 //				System.out.println("gone through -> " + executor.getName());
 			} catch (MessageFailureException ex) {
 //				System.out.println(ex.getMessage() + " -> " + executor.getName());

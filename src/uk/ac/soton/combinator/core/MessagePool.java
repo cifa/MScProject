@@ -1,52 +1,64 @@
 package uk.ac.soton.combinator.core;
 
-import java.lang.ref.Reference;
-import java.lang.ref.ReferenceQueue;
-import java.lang.ref.SoftReference;
-import java.lang.ref.WeakReference;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 
-public class MessagePool implements Runnable {
+public class MessagePool {
 
-	public static AtomicInteger count = new AtomicInteger();
-	private static Thread runner;
-	private static ReferenceQueue<Message<?>> refQueue = new ReferenceQueue<>();
 	private static ConcurrentLinkedQueue<Message<?>> msgPool = new ConcurrentLinkedQueue<>();
-	private static ConcurrentLinkedQueue<Reference<Message<?>>> weakRefs = new ConcurrentLinkedQueue<>();
 	
-	static {
-		new Thread(new MessagePool()).start();
+	public static <T> Message<T> createMessage(Class<T> messageDataType, T content) {
+		return createMessage(messageDataType, content, null);	
 	}
 	
-	public static void test(Message<?> msg) {
-		weakRefs.add(new WeakReference<Message<?>>(msg, refQueue));
+	
+	public static <T> Message<T> createMessage(Class<T> messageDataType, T content, MessageEventHandler<T> messageCallback) {
+		if(messageDataType == null) {
+			throw new IllegalArgumentException("Message Data Type cannot be null");
+		}
+		@SuppressWarnings("unchecked")
+		Message<T> msg = (Message<T>) msgPool.poll();
+		if(msg == null) {
+			msg = new Message<>();
+		} else {
+			msg.messageState.set(Message.ACTIVE);
+		}		
+		msg.messageDataType = messageDataType;
+		msg.content = content;
+		msg.messageCallback = messageCallback;
+		return msg;	
+	}
+	
+	@SafeVarargs
+	public static <T> Message<T> createMessage(Message<T>... msgs) {
+		Message<T> msg = createMessage(msgs[0].messageDataType, msgs[0].content, null);
+		msg.encapsulatedMsgs = msgs;
+		// Message wrapper is type safe
+		msg.setTypeVerified(true);
+		// assoc the encapsulated msgs with this wrapper
+		boolean valid = true;
+		for(Message<T> m : msgs) {
+			m.addOuterWrapperMessage(msg);
+			// has any of the encapsulated msgs just been cancelled?
+			valid = valid && !m.isCancelled();
+			// encapsulated msgs must be active
+			m.messageState.set(Message.ACTIVE);
+			// only top level msgs are carried
+			m.currentCarrier = null;
+			
+		}
+		// cannot build a valid msg from invalidated ones
+		if(! valid) {
+			msg.cancel(false);
+		}
+		return msg;	
+	}
+	
+	public static void recycle(Message<?> msg) {
+		msgPool.offer(msg);
 	}
 	
 	public static int poolSize() {
 		return msgPool.size();
 	}
 	
-	public static void shutdown() {
-		runner.interrupt();
-	}
-	
-	@Override
-	public void run() {
-		runner = Thread.currentThread();
-		while(true) {
-			try {
-				Reference<? extends Message<?>> ref = refQueue.remove();
-				
-				Message<?> msg = ref.get();
-//				weakRefs.remove(ref);
-				if(msg == null) {
-					count.incrementAndGet();
-//					msgPool.offer(msg);
-				}
-			} catch (InterruptedException e) {
-				break;
-			}
-		}
-	}	
 }

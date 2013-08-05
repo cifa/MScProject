@@ -13,6 +13,7 @@ import uk.ac.soton.combinator.core.CombinatorThreadPool;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.MessageFailureException;
+import uk.ac.soton.combinator.core.MessagePool;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.Port;
 
@@ -120,7 +121,7 @@ public class JoinPushWire<T> extends Combinator implements Runnable {
 		
 		if(msgJoinSuccessful) {
 			// we create a new join message from all received messages
-			final Message<T> joinMsg = new Message<>(msgs);
+			final Message<T> joinMsg = MessagePool.createMessage(msgs);
 			// ... and send it on
 			CombinatorThreadPool.execute(new Runnable() {					
 				@Override
