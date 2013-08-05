@@ -11,6 +11,7 @@ import uk.ac.soton.combinator.core.CombinatorThreadPool;
 import uk.ac.soton.combinator.core.ControlType;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
+import uk.ac.soton.combinator.core.MessagePool;
 import uk.ac.soton.combinator.core.PortDefinition;
 import uk.ac.soton.combinator.data.BackOffTreiberStack;
 import uk.ac.soton.combinator.data.EliminationArray;
@@ -59,7 +60,7 @@ public class Main {
 //		eliminationStackTest(1000, 1000);
 //		eliminationStackTest(1000, 1000);
 //		eliminationStackArrayFirstTest(100, 1000);
-		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 1000);
 //		eliminationBackOffStackTest(1000, 10000);
 //		eliminationBackOffStackTest(1000, 10000);
 //		eliminationBackOffStackTest(1000, 10000);
@@ -656,6 +657,9 @@ public class Main {
 		System.out.println("OUT Success: " + eliminationExchanger.outSuc.get());
 		
 		System.out.println(Message.count.get());
+		System.out.println(MessagePool.count.get());
+		System.out.println(MessagePool.poolSize());
+		MessagePool.shutdown();
 	}
 	
 	private static void eliminationArrayTest(int noOfProducers, int msgsPerProducer) {

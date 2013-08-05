@@ -97,6 +97,7 @@ public class Message<T> implements Future<T> {
 		this.waiters = new ConcurrentLinkedQueue<>();
 		
 		count.incrementAndGet();
+		MessagePool.test(this);
 	}
 	
 	/**
