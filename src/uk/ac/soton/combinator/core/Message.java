@@ -14,6 +14,7 @@ import java.util.concurrent.locks.LockSupport;
 
 public class Message<T> implements Future<T> {
 	
+	public static AtomicInteger count = new AtomicInteger();
 	/* Denotes the initial state of the message meaning
 	 * that is has not been either fully acknowledged or 
 	 * cancelled (invalidated)
@@ -94,6 +95,8 @@ public class Message<T> implements Future<T> {
 		this.messageCallback = messageCallback;
 		this.messageState = new AtomicInteger(ACTIVE);
 		this.waiters = new ConcurrentLinkedQueue<>();
+		
+		count.incrementAndGet();
 	}
 	
 	/**
