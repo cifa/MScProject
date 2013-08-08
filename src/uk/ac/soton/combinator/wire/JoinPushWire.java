@@ -26,7 +26,8 @@ public class JoinPushWire<T> extends Combinator implements Runnable {
 	private volatile CyclicBarrier barrier;
 	private final ReentrantLock[] locks;
 	private final AtomicReferenceArray<Message<T>> joinMessages;
-	private final MessageFailureException ex = new MessageFailureException("Unable to join all messages (not equal)");
+	private final MessageFailureException exJoin = new MessageFailureException("Unable to join all messages (not equal)");
+	private final MessageFailureException exBarrier = new MessageFailureException("Barrier Broken");
 	
 	private volatile boolean msgJoinSuccessful;
 	
@@ -81,7 +82,7 @@ public class JoinPushWire<T> extends Combinator implements Runnable {
 					barrier.await();
 					// join complete -> was it a success??
 					if(!msgJoinSuccessful) {
-						throw ex;
+						throw exJoin;
 					}
 				} catch (InterruptedException | BrokenBarrierException e) {
 					/* This means that one of the join messages has been invalidated
@@ -91,12 +92,14 @@ public class JoinPushWire<T> extends Combinator implements Runnable {
 					 */
 					msg.cancel(false);
 //					System.out.println("Join interrupt " + id + ": " + msg + Thread.interrupted());
-					new MessageFailureException("Barrier Broken");
+					throw exBarrier;
 				} finally {
 					if(barrier.isBroken()) {
 						barrier.reset();
 //						barrier = new CyclicBarrier(noOfJoinPorts, JoinPushWire.this);
 					}
+					// clear possible interruption flag
+					Thread.interrupted();
 					locks[portIndex].unlock();
 				}
 			}

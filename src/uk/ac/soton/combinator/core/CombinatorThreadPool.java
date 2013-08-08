@@ -12,6 +12,7 @@ public final class CombinatorThreadPool {
 	}
 	
 	public static void shutdown() {
-		ThreadPool.shutdown();
+		ThreadPool.shutdownNow();
+//		ThreadPool.shutdown();
 	}
 }

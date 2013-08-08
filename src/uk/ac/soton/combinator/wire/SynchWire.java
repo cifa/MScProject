@@ -83,7 +83,7 @@ public class SynchWire<T> extends Combinator {
 					} else {
 						msg = exchanger.exchange(null);
 					}
-					return new Message<T>(dataType, msg.get());
+					return msg;
 				} catch (InterruptedException | TimeoutException e) {
 					// no exchange -> fail
 					throw ex;

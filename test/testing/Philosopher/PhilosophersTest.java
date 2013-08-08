@@ -50,7 +50,9 @@ public class PhilosophersTest {
 		new Thread(phil4, "Phil 4").start();
 		new Thread(phil5, "Phil 5").start();
 		
+		System.out.println("Main sleeping");
 		Thread.sleep(11000);
+		System.out.println("Pool shutting down");
 		// always shut down all threads
 		CombinatorThreadPool.shutdown();
 	}

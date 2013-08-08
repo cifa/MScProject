@@ -74,7 +74,7 @@ public class Message<T> implements Future<T> {
 	 * one of the get() methods when the message is not fully acknowledged
 	 * yet.
 	 */
-	private final ConcurrentLinkedQueue<Thread> waiters;
+	private volatile ConcurrentLinkedQueue<Thread> waiters;
 	
 	private volatile Thread currentCarrier;
 	
@@ -93,7 +93,7 @@ public class Message<T> implements Future<T> {
 		this.content = content;
 		this.messageCallback = messageCallback;
 		this.messageState = new AtomicInteger(ACTIVE);
-		this.waiters = new ConcurrentLinkedQueue<>();
+//		this.waiters = new ConcurrentLinkedQueue<>();
 	}
 	
 	/**
@@ -133,40 +133,62 @@ public class Message<T> implements Future<T> {
 		// an attempt to access the content is considered as acknowledgement that the 
 		// message has been received by its consumer
 		acknowledged = true;
+		
 		// msgs must be fully acknowledged before we can return the value
 		while(messageState.get() != FULLY_ACKNOWLEDGED) {
-			// add current thread as a potential waiter
-			waiters.add(Thread.currentThread());
-			
 			// throw exception if message invalidated (cancelled)
 			if(isCancelled()) {
-				if(! waiters.remove(Thread.currentThread())) {
-					/*
-					 * This means that another thread executed unparkWaiters
-					 * in after the current thread was added to the waiters queue.
-					 * This means that the next call to park() is guaranteed not to
-					 * block - get rid of it
-					 */
-					LockSupport.park(this);
-				}
 				throw new CancellationException("Cannot access the " +
 						"content of an invalidated message");
 			}
 			
-			synchronized (this) {
+			if(messageState.get() == FULLY_ACKNOWLEDGED) {
+				// fully acknowledged by another thread -> return content
+				break;
+			} else {
 				// check if fully acknowledged now 
-				if(runFullAcknowledgementTest()) {
-					//try to remove from waiters if fully acknowledged
-					if(! waiters.remove(Thread.currentThread())) {					
-						LockSupport.park(this);
-					}
+				if(runFullAcknowledgementCheck()) {
 					// fully acknowledged -> return content
 					break;
 				}
 			}
-
-			// wait for changes (either invalidation or full acknowledgement)
-			LockSupport.park(this);
+			
+			if(messageState.get() == ACTIVE) {
+				// init waiters queue if not done yet
+				if(waiters == null) {
+					synchronized (this) {
+						if(waiters == null) {
+							waiters = new ConcurrentLinkedQueue<>();
+						}
+					}
+				}
+				// add current thread as a potential waiter
+				waiters.add(Thread.currentThread());
+				
+				/*
+				 *  we need to re-run the full acknowledge check after adding
+				 *  the current thread as a waiter to avoid missed unparks
+				 *  TODO is the re-run better than initialising the waiters queue
+				 *       in the constructor and adding the tread before the first
+				 *       runFullAcknowledgementCheck() call?
+				 */
+				runFullAcknowledgementCheck();
+				
+				/*
+				 * We need to wait if message state is still active.
+				 * If it's not we can continue and determine the right response
+				 * in the next iteration of the while loop. But before that the 
+				 * current thread needs to be removed from the waiters queue - 
+				 * failure of this call means that another thread executed unparkWaiters
+				 * after the current thread was added to the waiters queue.
+				 * This means that the next call to park() is guaranteed not to
+				 * block - get rid of it
+				 */
+				if(messageState.get() == ACTIVE || !waiters.remove(Thread.currentThread())) {
+					// wait for changes (either invalidation or full acknowledgement)
+					LockSupport.park(this);
+				}			
+			}
 		}
 		// we are fully acknowledged and can return the value
 		return content;
@@ -184,13 +206,21 @@ public class Message<T> implements Future<T> {
 				throw new CancellationException("Cannot access the " +
 						"content of an invalidated message");
 			}
-			synchronized (this) {
-				if(runFullAcknowledgementTest()) {
-					// fully acknowledged -> return content
-					return content;
+			
+			if(runFullAcknowledgementCheck()) {
+				// fully acknowledged -> return content
+				return content;
+			}
+			
+			// we need to wait
+			// init waiters queue if not done yet
+			if(waiters == null) {
+				synchronized (this) {
+					if(waiters == null) {
+						waiters = new ConcurrentLinkedQueue<>();
+					}
 				}
 			}
-			// we need to wait
 			waiters.add(Thread.currentThread());
 			LockSupport.parkNanos(this, unit.toNanos(timeout));
 			
@@ -233,8 +263,11 @@ public class Message<T> implements Future<T> {
 			wrapperMsgs = null;
 			
 			if(currentCarrier != null) {
-				currentCarrier.interrupt();
-				currentCarrier = null;
+				try {
+					// multi-thread interleavings can cause NullPointerException
+					currentCarrier.interrupt();
+					currentCarrier = null;
+				} catch (NullPointerException ex) {}			
 			}
 			
 			/* Unpark any threads waiting to get the content - they will
@@ -279,7 +312,7 @@ public class Message<T> implements Future<T> {
 	public boolean isDone() {
 		if(messageState.get() == ACTIVE) {
 			// can it be fully acknowledged now?
-			runFullAcknowledgementTest();
+			runFullAcknowledgementCheck();
 		}
 		return messageState.get() != ACTIVE;
 	}
@@ -302,7 +335,7 @@ public class Message<T> implements Future<T> {
 	
 	@Override
 	public String toString() {
-		return content + " " + currentCarrier;
+		return content + " " + currentCarrier + " ";
 	}
 	
 	/* TODO we cannot stop the validator from exposing the message content(s)
@@ -311,7 +344,7 @@ public class Message<T> implements Future<T> {
 	@SafeVarargs
 	@SuppressWarnings("unchecked")
 	public static <T> boolean validateMessageContent(final MessageValidator<T> validator, 
-			final Message<T>... msgs) {
+			final Message<? extends T>... msgs) {
 		if(validator == null || msgs == null) {
 			throw new IllegalArgumentException("MessageValidator and/or Messages to validate cannot be null");
 		}
@@ -367,7 +400,7 @@ public class Message<T> implements Future<T> {
 		currentCarrier = t;
 	}
 	
-	private synchronized boolean runFullAcknowledgementTest() {
+	private synchronized boolean runFullAcknowledgementCheck() {
 		fullAcknowledgementRunner = Thread.currentThread();
 		boolean ack = isMessageFullyAcknowledged();
 		fullAcknowledgementRunner = null;
@@ -428,8 +461,6 @@ public class Message<T> implements Future<T> {
 			}
 		}
 		return messageState.get() == FULLY_ACKNOWLEDGED;
-//		fullyAcknowledged = ack  && valid.get();
-//		return fullyAcknowledged;
 	}
 	
 	private boolean isWrapperAck() {
@@ -454,9 +485,11 @@ public class Message<T> implements Future<T> {
 	}
 	
 	private void unparkWaiters() {
-		Thread t;
-		while((t = waiters.poll()) != null) {
-			LockSupport.unpark(t);
+		if(waiters != null) {
+			Thread t;
+			while((t = waiters.poll()) != null) {
+				LockSupport.unpark(t);
+			}
 		}
 	}
 }

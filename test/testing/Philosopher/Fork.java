@@ -41,6 +41,7 @@ public class Fork extends Combinator {
 					if(!holder.compareAndSet(0, msg.get())) {
 						throw ex;
 					}
+//					System.out.println("Fork " + id + " held by " + msg.get());
 				} catch(CancellationException e) {
 					System.out.println("Fork " + id + " detected CANCELLED message");
 					throw ex;
