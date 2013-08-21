@@ -4,7 +4,7 @@ package uk.ac.soton.combinator.core;
 public abstract class PassiveInPortHandler<T> implements PassivePortHandler<T> {
 
 	@Override
-	public final Message<T> produce() {
+	public final Message<? extends T> produce() {
 		throw new UnsupportedOperationException("Passive IN port cannot produce messages");
 	}
 

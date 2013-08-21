@@ -78,7 +78,7 @@ public class PermutePushWire extends Combinator {
 		@Override
 		public void accept(Message<? extends Object> msg)
 				throws MessageFailureException {
-			getRightBoundary().send(msg, portIndex);
+			sendRight(msg, portIndex);
 		}
 	};
 

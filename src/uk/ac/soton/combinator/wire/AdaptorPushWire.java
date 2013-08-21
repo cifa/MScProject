@@ -33,7 +33,7 @@ public class AdaptorPushWire<T> extends Combinator {
 
 			@Override
 			public void accept(Message<? extends T> msg) {
-				getRightBoundary().send(msg, 0);
+				sendRight(msg, 0);
 			}
 		};
 		List<Port<?>> ports = new ArrayList<Port<?>>();

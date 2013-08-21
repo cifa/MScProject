@@ -321,17 +321,16 @@ public class Message<T> implements Future<T> {
 		return messageDataType;
 	}
 	
-	public boolean contentEquals(Message<T> other) {
-		if(other != null) {
+	public boolean contentEquals(Message<? extends T> joinMessages) {
+		if(joinMessages != null) {
 			if(content == null) {
-				return other.content == null;
+				return joinMessages.content == null;
 			} else {
-				return content.equals(other.content);
+				return content.equals(joinMessages.content);
 			}
 		}
 		return false;
 	}
-	
 	
 	@Override
 	public String toString() {

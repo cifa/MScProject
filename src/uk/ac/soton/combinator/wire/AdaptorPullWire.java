@@ -40,8 +40,8 @@ public class AdaptorPullWire<T> extends Combinator {
 
 			@SuppressWarnings("unchecked")
 			@Override
-			public Message<T> produce() {
-				return (Message<T>) getLeftBoundary().receive(0);
+			public Message<? extends T> produce() {
+				return (Message<? extends T>) receiveLeft(0);
 			}
 		};
 		List<Port<?>> ports = new ArrayList<Port<?>>();

@@ -129,7 +129,7 @@ public class JoinPushWire<T> extends Combinator implements Runnable {
 				@Override
 				public void run() {
 					try {
-						getRightBoundary().send(joinMsg, 0);
+						sendRight(joinMsg, 0);
 					} catch(MessageFailureException ex) {}
 				}
 			});

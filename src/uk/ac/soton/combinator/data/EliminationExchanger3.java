@@ -57,7 +57,7 @@ public class EliminationExchanger3<T> extends Combinator {
 		ports.add(Port.getPassiveOutPort(dataType, new PassiveOutPortHandler<T>() {
 
 			@Override
-			public Message<T> produce() throws RequestFailureException {
+			public Message<? extends T> produce() throws RequestFailureException {
 				try {
 					T value = exchanger.exchange(null);
 					if(value != null) {

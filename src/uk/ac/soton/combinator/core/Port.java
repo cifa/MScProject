@@ -1,6 +1,5 @@
 package uk.ac.soton.combinator.core;
 
-
 public class Port<T> {
 	
 	private final Class<T> portDataType;

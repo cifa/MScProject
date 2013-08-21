@@ -47,7 +47,7 @@ public class CallbackProducer extends Combinator implements Runnable, MessageEve
 			try {
 				int content = rand.nextInt(100);
 //				System.out.println("Sending -> " + executor.getName() + " (" + content + ")");
-				getRightBoundary().send(new Message<Integer>(Integer.class, content, this), 0);
+				sendRight(new Message<Integer>(Integer.class, content, this), 0);
 //				System.out.println("gone through -> " + executor.getName());
 			} catch (MessageFailureException ex) {
 //				System.out.println(ex.getMessage() + " -> " + executor.getName() + " " + Thread.interrupted());

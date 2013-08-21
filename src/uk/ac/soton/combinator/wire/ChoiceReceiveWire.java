@@ -45,14 +45,14 @@ public class ChoiceReceiveWire<T> extends Combinator {
 		ports.add(Port.getPassiveOutPort(dataType, new PassiveOutPortHandler<T>() {
 
 			@Override
-			public Message<T> produce() throws RequestFailureException {
+			public Message<? extends T> produce() throws RequestFailureException {
 				int portIndex = 0;
 				//TODO do we really wanna loop forever if all choices always fail?
 				while(true) {
 					try {
 						// try to receive a message on the current choice port
 						@SuppressWarnings("unchecked")
-						Message<T> msg = (Message<T>) getLeftBoundary().receive(portIndex);
+						Message<? extends T> msg = (Message<? extends T>) receiveLeft(portIndex);
 						// we've got a message -> return it
 						return msg;
 					} catch(InvalidMessageReceivedException ex) {

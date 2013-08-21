@@ -42,7 +42,7 @@ public class PullConsumer<T> extends Combinator implements Runnable {
 		for (int i = 0; i < noOfMsgs; i++) {	
 			try {
 				@SuppressWarnings("unchecked")
-				Message<T> msg = (Message<T>) getLeftBoundary().receive(0);
+				Message<T> msg = (Message<T>) receiveLeft(0);
 //				System.out.println(msg.getContent());
 			} catch (RequestFailureException ex) {
 				i--;

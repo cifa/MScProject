@@ -59,7 +59,7 @@ public class Philosopher extends Combinator implements Runnable {
 				System.out.println("Philosopher " + id + " is trying to get the forks");
 				try {
 					// grab the forks
-					getRightBoundary().send(new Message<Integer>(Integer.class, id, callback), 0);
+					sendRight(new Message<Integer>(Integer.class, id, callback), 0);
 					state = PhilosopherState.EATING;
 					System.out.println("Philosopher " + id + " has acquired both forks");
 				} catch (MessageFailureException ex) {
@@ -68,7 +68,7 @@ public class Philosopher extends Combinator implements Runnable {
 			} else {
 				System.out.println("Philosopher " + id + " has finished EATING now");
 				// return the forks
-				getRightBoundary().send(new Message<Integer>(Integer.class, id), 1);
+				sendRight(new Message<Integer>(Integer.class, id), 1);
 				state = PhilosopherState.THINKING;
 				System.out.println("Philosopher " + id + " has return the forks");
 			}
@@ -81,7 +81,7 @@ public class Philosopher extends Combinator implements Runnable {
 		// make sure you don't keep the forks when you leave
 		if(state == PhilosopherState.EATING) {
 			// return the forks
-			getRightBoundary().send(new Message<Integer>(Integer.class, id), 1);
+			sendRight(new Message<Integer>(Integer.class, id), 1);
 		}
 	}
 

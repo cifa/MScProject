@@ -62,12 +62,12 @@ public class EliminationStack<T> extends Combinator implements IStack<T> {
 
 	@Override
 	public void push(T value) {
-		getRightBoundary().send(new Message<Object>(Object.class, value), 0);
+		sendRight(new Message<Object>(Object.class, value), 0);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public T pop() {
-		return (T) getRightBoundary().receive(1).get();
+		return (T) receiveRight(1).get();
 	}
 }

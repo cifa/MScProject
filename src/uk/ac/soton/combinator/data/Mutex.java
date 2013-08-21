@@ -52,7 +52,7 @@ public class Mutex<T> {
 					if(busy.compareAndSet(false, true)) {
 						// we're in and can pass the message on
 						try {
-							getRightBoundary().send(msg, 0);
+							sendRight(msg, 0);
 						} finally {
 							// make it available again
 							busy.set(false);
@@ -95,11 +95,11 @@ public class Mutex<T> {
 
 				@SuppressWarnings("unchecked")
 				@Override
-				public Message<T> produce() {
+				public Message<? extends T> produce() {
 					if(busy.compareAndSet(false, true)) {
 						// we're in and can pass the message on
 						try {
-							return (Message<T>) getLeftBoundary().receive(0);
+							return (Message<? extends T>) receiveLeft(0);
 						} finally {
 							// make it available again
 							busy.set(false);

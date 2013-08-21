@@ -29,7 +29,7 @@ public class EliminationExchanger2<T> extends Combinator {
 	private static final int SIZE = 32;//(Runtime.getRuntime().availableProcessors() + 1);
 	private static final int SPINS = (Runtime.getRuntime().availableProcessors() == 1) ? 0 : 2000;
 	private final Class<T> dataType;
-	private final AtomicReference<Node<Message<T>>>[] slots;
+	private final AtomicReference<Node<Message<? extends T>>>[] slots;
 	
 	private final AtomicInteger max = new AtomicInteger(1);
 	
@@ -40,7 +40,7 @@ public class EliminationExchanger2<T> extends Combinator {
 	public EliminationExchanger2(Class<T> dataType, CombinatorOrientation orientation) {
 		super(orientation);
 		this.dataType = dataType;
-		slots = (AtomicReference<Node<Message<T>>>[]) new AtomicReference<?>[SIZE];
+		slots = (AtomicReference<Node<Message<? extends T>>>[]) new AtomicReference<?>[SIZE];
 		for(int i=0; i<SIZE; i++) {
 			slots[i] = new AtomicReference<>();
 		}
@@ -54,12 +54,11 @@ public class EliminationExchanger2<T> extends Combinator {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		ports.add(Port.getPassiveInPort(dataType, new PassiveInPortHandler<T>() {
 
-			@SuppressWarnings("unchecked")
 			@Override
 			public void accept(Message<? extends T> msg)
 					throws MessageFailureException {
 				in.incrementAndGet();
-				Node<Message<T>> node = exchange(new Node<Message<T>>((Message<T>) msg));
+				Node<Message<? extends T>> node = exchange(new Node<Message<? extends T>>(msg));
 				if (node.getStamp() != TAKEN) {
 					throw msgEx;
 				}
@@ -79,9 +78,9 @@ public class EliminationExchanger2<T> extends Combinator {
 
 			@SuppressWarnings("unchecked")
 			@Override
-			public Message<T> produce() throws RequestFailureException {
+			public Message<? extends T> produce() throws RequestFailureException {
 				out.incrementAndGet();
-				Node<Message<T>> node = exchange(new Node<Message<T>>(null));
+				Node<Message<? extends T>> node = exchange(new Node<Message<? extends T>>(null));
 				if (node.getStamp() != TAKEN) {
 					throw reqEx;
 				}
@@ -92,10 +91,10 @@ public class EliminationExchanger2<T> extends Combinator {
 		return ports;
 	}
 	
-	private Node<Message<T>> exchange(Node<Message<T>> me) {
+	private Node<Message<? extends T>> exchange(Node<Message<? extends T>> me) {
 		int index = 0;
 		int fails = 0;
-		Node<Message<T>> you;
+		Node<Message<? extends T>> you;
 
 		while (true) {
 			if ((you = slots[index].get()) != null
@@ -112,7 +111,7 @@ public class EliminationExchanger2<T> extends Combinator {
 					break;
 				} else {
 					fails++;
-					me = new Node<Message<T>>(me.value);
+					me = new Node<Message<? extends T>>(me.value);
 					int m = max.get();
 					if (m > (index >>>= 1) && m > 1) {		
 						max.compareAndSet(m, m - 1);  
@@ -149,12 +148,12 @@ public class EliminationExchanger2<T> extends Combinator {
         }
 	}
 	
-	private static final class Node<T> extends AtomicStampedReference<Object> {  
+	private static final class Node<V> extends AtomicStampedReference<Object> {  
 		
-		public final T value;
+		public final V value;
 		public final Thread waiter;
 		
-		Node(T value) {
+		Node(V value) {
 			super(null, OFFERED);
 			this.value = value;
 			this.waiter = Thread.currentThread();

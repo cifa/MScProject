@@ -16,12 +16,12 @@ import uk.ac.soton.combinator.core.RequestFailureException;
 public class BackOffTreiberStack<T> extends Combinator {
 
 	private final Class<T> stackDataType;
-	private final AtomicReference<Node<Message<T>>> head;
+	private final AtomicReference<Node<Message<? extends T>>> head;
 	
 	public BackOffTreiberStack(Class<T> stackDataType, CombinatorOrientation orientation) {
 		super(orientation);
 		this.stackDataType = stackDataType;
-		this.head = new AtomicReference<Node<Message<T>>>();
+		this.head = new AtomicReference<Node<Message<? extends T>>>();
 	}
 
 	@Override
@@ -31,11 +31,10 @@ public class BackOffTreiberStack<T> extends Combinator {
 
 			private final MessageFailureException ex = new MessageFailureException();
 			
-			@SuppressWarnings("unchecked")
 			@Override
 			public void accept(Message<? extends T> msg) {
-				Node<Message<T>> newHead = new Node<Message<T>>((Message<T>) msg);
-				Node<Message<T>> oldHead = head.get();
+				Node<Message<? extends T>> newHead = new Node<Message<? extends T>>(msg);
+				Node<Message<? extends T>> oldHead = head.get();
 				newHead.next = oldHead;
 				if(!head.compareAndSet(oldHead, newHead)) {
 					throw ex;
@@ -53,8 +52,8 @@ public class BackOffTreiberStack<T> extends Combinator {
 			private final RequestFailureException ex = new RequestFailureException();
 			
 			@Override
-			public Message<T> produce() {
-				Node<Message<T>> curHead = head.get();
+			public Message<? extends T> produce() {
+				Node<Message<? extends T>> curHead = head.get();
 				if(curHead == null || !head.compareAndSet(curHead, curHead.next)) {
 					throw ex;
 				}

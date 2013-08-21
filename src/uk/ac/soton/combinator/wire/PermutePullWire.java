@@ -78,7 +78,7 @@ public class PermutePullWire extends Combinator {
 		@SuppressWarnings("unchecked")
 		@Override
 		public Message<Object> produce() throws RequestFailureException {
-			return (Message<Object>) getLeftBoundary().receive(portIndex);
+			return (Message<Object>) receiveLeft(portIndex);
 		}	
 	};
 }

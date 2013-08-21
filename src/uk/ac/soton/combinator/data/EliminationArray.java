@@ -99,7 +99,7 @@ public class EliminationArray<T> extends Combinator {
 		ports.add(Port.getPassiveOutPort(dataType, new PassiveOutPortHandler<T>() {
 			
 			@Override
-			public Message<T> produce() {
+			public Message<? extends T> produce() {
 				long time = System.currentTimeMillis() + timeout;
 				while(System.currentTimeMillis() < time) {
 					int slotIndex = rand.nextInt(slots.length);

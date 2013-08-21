@@ -77,7 +77,7 @@ public class JoinPullWire<T> extends Combinator {
 			private final RequestFailureException ex = new RequestFailureException("Unable to join all messages (not equal)");
 
 			@Override
-			public Message<T> produce() throws RequestFailureException {
+			public Message<? extends T> produce() throws RequestFailureException {
 				mutexOut.lock();
 				try {
 					int retriesLeft = retries;
@@ -154,7 +154,7 @@ public class JoinPullWire<T> extends Combinator {
 		public void run() {
 			try {
 				@SuppressWarnings("unchecked")
-				Message<T> msg = (Message<T>) getLeftBoundary().receive(portIndex);
+				Message<T> msg = (Message<T>) receiveLeft(portIndex);
 				// set msg for this port
 				joinMessages[portIndex] = msg;
 				// and (atomically) mark its success

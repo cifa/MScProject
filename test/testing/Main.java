@@ -58,12 +58,12 @@ public class Main {
 //		eliminationStackTest(1000, 1000);
 //		eliminationStackTest(1000, 1000);
 //		eliminationStackArrayFirstTest(100, 1000);
-		eliminationBackOffStackTest(1000, 10000);
-		eliminationBackOffStackTest(1000, 10000);
-		eliminationBackOffStackTest(1000, 10000);
-		eliminationBackOffStackTest(1000, 10000);
-		eliminationBackOffStackTest(1000, 10000);
-		eliminationBackOffStackTest(1000, 10000);
+//		eliminationBackOffStackTest(1000, 10000);
+//		eliminationBackOffStackTest(1000, 10000);
+//		eliminationBackOffStackTest(1000, 10000);
+//		eliminationBackOffStackTest(1000, 10000);
+//		eliminationBackOffStackTest(1000, 10000);
+//		eliminationBackOffStackTest(1000, 10000);
 //		eliminationArrayTest(10, 100);
 //		eliminationExchangerTest(1000, 10000);
 //		eliminationExchangerTest(1000, 10000);
@@ -74,8 +74,8 @@ public class Main {
 //		synchWireTest(1000);
 //		synchWireTestRigtToLeft(100);
 //		copyWireTest(10, 100);
-//		copyAndJoinWithTwoStacksTest(10, 1);
-//		copyAndJoinWithTwoQueuesTest(100,1000);
+		copyAndJoinWithTwoStacksTest(10, 1);
+		copyAndJoinWithTwoQueuesTest(100,1000);
 //		permuteWirePortTest();
 //		permuteWiresTest(10);
 //		joinPushWireTest();
@@ -881,16 +881,20 @@ public class Main {
 
 		AdaptorPushWire<Integer> leftAdaptor = new AdaptorPushWire<>(Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
 		AdaptorPullWire<Integer> rightAdaptor= new AdaptorPullWire<>(Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
+		SendSemaphore<Integer> sendSemaphore = new SendSemaphore<>(Integer.class, 1, CombinatorOrientation.LEFT_TO_RIGHT);
+		ReceiveSemaphore<Integer> receiveSemaphore = new ReceiveSemaphore<>(Integer.class, sendSemaphore, CombinatorOrientation.RIGHT_TO_LEFT);
 		CopyWire<Integer> copyWire = new CopyWire<>(Integer.class, 2, false, CombinatorOrientation.LEFT_TO_RIGHT);
-		JoinPullWire<Integer> joinWire = new JoinPullWire<>(Integer.class, 2, false, CombinatorOrientation.LEFT_TO_RIGHT);
+		JoinPullWire<Integer> joinWire = new JoinPullWire<>(Integer.class, 2, false, CombinatorOrientation.LEFT_TO_RIGHT, 0);
 		TreiberStack<Integer> s1 = new TreiberStack<Integer>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
 		TreiberStack<Integer> s2 = new TreiberStack<Integer>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
 		Combinator stacks = s1.combine(s2, CombinationType.VERTICAL);
 		
 		producers.combine(leftAdaptor, CombinationType.HORIZONTAL)
+				.combine(sendSemaphore, CombinationType.HORIZONTAL)
 				.combine(copyWire, CombinationType.HORIZONTAL)
 				.combine(stacks, CombinationType.HORIZONTAL)
 				.combine(joinWire, CombinationType.HORIZONTAL)
+				.combine(receiveSemaphore, CombinationType.HORIZONTAL)
 				.combine(rightAdaptor, CombinationType.HORIZONTAL)
 				.combine(consumers, CombinationType.HORIZONTAL);
 

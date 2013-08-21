@@ -32,10 +32,10 @@ public class ReceiveSemaphore<T> extends AbstractSemaphore<T> {
 
 			@SuppressWarnings("unchecked")
 			@Override
-			public Message<T> produce() {
+			public Message<? extends T> produce() {
 				if(semaphore.tryAcquire()) {
 					try {
-						return (Message<T>) getRightBoundary().receive(0);
+						return (Message<? extends T>) receiveRight(0);
 					} finally {
 						semaphore.release();
 					}

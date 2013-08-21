@@ -21,7 +21,7 @@ public class SynchWire<T> extends Combinator {
 	private final Class<T> dataType;
 	private final int timeout;
 	private final ReentrantLock mutexIn, mutexOut;
-	private final Exchanger<Message<T>> exchanger;
+	private final Exchanger<Message<? extends T>> exchanger;
 	
 	public SynchWire(Class<T> dataType, CombinatorOrientation orientation, boolean fair) {
 		this(dataType, orientation, fair, 0);
@@ -43,7 +43,6 @@ public class SynchWire<T> extends Combinator {
 			
 			private final MessageFailureException ex = new MessageFailureException();
 
-			@SuppressWarnings("unchecked")
 			@Override
 			public void accept(Message<? extends T> msg)
 					throws MessageFailureException {
@@ -51,9 +50,9 @@ public class SynchWire<T> extends Combinator {
 				mutexIn.lock();
 				try {
 					if(timeout > 0) {
-						exchanger.exchange((Message<T>) msg, timeout, TimeUnit.MILLISECONDS);
+						exchanger.exchange(msg, timeout, TimeUnit.MILLISECONDS);
 					} else {
-						exchanger.exchange((Message<T>) msg);
+						exchanger.exchange(msg);
 					}	
 				} catch (InterruptedException | TimeoutException e) {
 					// no exchange -> fail
@@ -74,10 +73,10 @@ public class SynchWire<T> extends Combinator {
 			private final RequestFailureException ex = new RequestFailureException("Bound busy");
 
 			@Override
-			public Message<T> produce() throws RequestFailureException {
+			public Message<? extends T> produce() throws RequestFailureException {
 				mutexOut.lock();
 				try {
-					Message<T> msg;
+					Message<? extends T> msg;
 					if(timeout > 0) {
 						msg = exchanger.exchange(null, timeout, TimeUnit.MILLISECONDS);
 					} else {

@@ -106,7 +106,7 @@ public class EliminationExchanger<T> extends Combinator {
 		ports.add(Port.getPassiveOutPort(dataType, new PassiveOutPortHandler<T>() {
 
 			@Override
-			public Message<T> produce() throws RequestFailureException {
+			public Message<? extends T> produce() throws RequestFailureException {
 				out.incrementAndGet();
 				Node<T> node;
 				for(int i=0; i<max.get(); i++) {

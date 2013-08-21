@@ -108,7 +108,7 @@ public class CopyWire<T> extends Combinator {
 		public void run() {
 			try {
 				copyStart.await();
-				getRightBoundary().send(msg, portIndex);
+				sendRight(msg, portIndex);
 			} catch(MessageFailureException | InterruptedException ex) {
 				copyFailed = true;
 			} finally {

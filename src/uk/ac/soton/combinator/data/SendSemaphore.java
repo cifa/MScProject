@@ -34,7 +34,7 @@ public class SendSemaphore<T> extends AbstractSemaphore<T> {
 			public void accept(Message<? extends T> msg) {
 				if(semaphore.tryAcquire()) {
 					try {
-						getRightBoundary().send(msg, 0);
+						sendRight(msg, 0);
 					} finally {
 						semaphore.release();
 					}

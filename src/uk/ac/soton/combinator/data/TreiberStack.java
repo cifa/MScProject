@@ -15,15 +15,12 @@ import uk.ac.soton.combinator.core.RequestFailureException;
 public class TreiberStack<T> extends Combinator {
 	
 	private final Class<T> stackDataType;
-	private final AtomicReference<Node<Message<T>>> head;
-//	private final AtomicInteger size, total;
+	private final AtomicReference<Node<Message<? extends T>>> head;
 	
 	public TreiberStack(Class<T> stackDataType, CombinatorOrientation orientation) {
 		super(orientation);
 		this.stackDataType = stackDataType;
-		this.head = new AtomicReference<Node<Message<T>>>();
-//		this.size = new AtomicInteger();
-//		this.total = new AtomicInteger();
+		this.head = new AtomicReference<Node<Message<? extends T>>>();
 	}
 	
 	public AtomicInteger size = new AtomicInteger();
@@ -33,19 +30,14 @@ public class TreiberStack<T> extends Combinator {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		ports.add(Port.getPassiveInPort(stackDataType, new PassiveInPortHandler<T>() {
 
-			@SuppressWarnings("unchecked")
 			@Override
 			public void accept(Message<? extends T> msg) {				
-				Node<Message<T>> newHead = new Node<>((Message<T>) msg);
-				Node<Message<T>> oldHead;
+				Node<Message<? extends T>> newHead = new Node<Message<? extends T>>(msg);
+				Node<Message<? extends T>> oldHead;
 				do {
-//					Thread.yield();
 					oldHead = head.get();
 					newHead.next = oldHead;
 				} while(!head.compareAndSet(oldHead, newHead));
-//				size.incrementAndGet();
-//				System.out.println("Stack size: " + size.incrementAndGet());
-//				System.out.println("Stack total: " + total.incrementAndGet());
 			}
 		}));
 		return ports;
@@ -59,29 +51,25 @@ public class TreiberStack<T> extends Combinator {
 			private final RequestFailureException ex = new RequestFailureException("Empty stack");
 			
 			@Override
-			public Message<T> produce() {
-				Node<Message<T>> curHead;
+			public Message<? extends T> produce() {
+				Node<Message<? extends T>> curHead;
 				do {
-//					Thread.yield();
 					curHead = head.get();
 					if(curHead == null) {
-//						System.out.println("Stack size: " + size.get());
 						throw ex;
 					}
 				} while(!head.compareAndSet(curHead, curHead.next));
-//				System.out.println("Stack size: " + size.decrementAndGet());
-//				size.decrementAndGet();
 				return curHead.value;
 			}
 		}));
 		return ports;
 	}
 	
-	private static class Node<T> {
-		final T value;
-		Node<T> next;
+	private static class Node<V> {
+		final V value;
+		Node<V> next;
 		
-		Node(T val) {
+		Node(V val) {
 			value = val;
 		}
 	}

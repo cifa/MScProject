@@ -71,11 +71,11 @@ public abstract class AbstractUntypedWire extends Combinator {
 
 		@SuppressWarnings("unchecked")
 		@Override
-		public Message<T> produce() throws RequestFailureException {
+		public Message<? extends T> produce() throws RequestFailureException {
 			if(side == Side.LEFT) {
-				return (Message<T>) getLeftBoundary().receive(portIndex);
+				return (Message<? extends T>) receiveLeft(portIndex);
 			} else {
-				return (Message<T>) getRightBoundary().receive(portIndex);
+				return (Message<? extends T>) receiveRight(portIndex);
 			}
 		}	
 	};
@@ -94,9 +94,9 @@ public abstract class AbstractUntypedWire extends Combinator {
 		public void accept(Message<? extends T> msg)
 				throws MessageFailureException {
 			if(side == Side.LEFT) {
-				getLeftBoundary().send(msg, portIndex);
+				sendLeft(msg, portIndex);
 			} else {
-				getRightBoundary().send(msg, portIndex);
+				sendRight(msg, portIndex);
 			}
 		}
 	};

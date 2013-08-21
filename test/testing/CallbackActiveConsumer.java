@@ -44,15 +44,13 @@ public class CallbackActiveConsumer extends Combinator implements Runnable {
 		while(! stopped) {	
 			try {
 				@SuppressWarnings("unchecked")
-				Message<Integer> msg = (Message<Integer>) getLeftBoundary().receive(0);
+				Message<Integer> msg = (Message<Integer>) receiveLeft(0);
 				if(Message.validateMessageContent(validator, msg)) {
 					System.out.println(msg.get()); 
 				}
 			} catch(CancellationException | RequestFailureException ex) {
 //					System.out.println(ex.getMessage());
-			}
-			
-			
+			}		
 		}
 	}
 	
