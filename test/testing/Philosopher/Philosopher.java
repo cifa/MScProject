@@ -8,9 +8,9 @@ import java.util.Random;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.MessageEventHandler;
 import uk.ac.soton.combinator.core.Port;
+import uk.ac.soton.combinator.core.exception.CombinatorPermanentFailureException;
 
 public class Philosopher extends Combinator implements Runnable {
 	
@@ -62,7 +62,7 @@ public class Philosopher extends Combinator implements Runnable {
 					sendRight(new Message<Integer>(Integer.class, id, callback), 0);
 					state = PhilosopherState.EATING;
 					System.out.println("Philosopher " + id + " has acquired both forks");
-				} catch (MessageFailureException ex) {
+				} catch (CombinatorPermanentFailureException ex) {
 					System.out.println("Philosopher " + id + " is STARVING");
 				}
 			} else {

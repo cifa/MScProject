@@ -60,16 +60,16 @@ public class PhilosophersTest {
 	public static Combinator getWiredPhilosopher(Philosopher phil) {
 		
 		AdaptorPushWire<Integer> bottomSinglePush = new AdaptorPushWire<>(Integer.class, 1, 
-				CombinatorOrientation.LEFT_TO_RIGHT);
+				CombinatorOrientation.LEFT_TO_RIGHT, false);
 		
 		AdaptorPushWire<Integer> releaseDoublePush = new AdaptorPushWire<>(Integer.class, 2, 
-				CombinatorOrientation.LEFT_TO_RIGHT); 
+				CombinatorOrientation.LEFT_TO_RIGHT, false); 
 		
 		CopyWire<Integer> releaseCopy = new CopyWire<>(Integer.class, 2, false,
-				CombinatorOrientation.LEFT_TO_RIGHT);
+				CombinatorOrientation.LEFT_TO_RIGHT, false);
 		
 		CopyWire<Integer> acquireCopy = new CopyWire<>(Integer.class, 2, false,
-				CombinatorOrientation.LEFT_TO_RIGHT);
+				CombinatorOrientation.LEFT_TO_RIGHT, false);
 		
 		ChoiceSendWire<Integer> choice = new ChoiceSendWire<>(Integer.class, 2,
 				CombinatorOrientation.LEFT_TO_RIGHT);
@@ -87,9 +87,9 @@ public class PhilosophersTest {
 	
 	public static Combinator getWiredFork(int id) {
 		AdaptorPushWire<Integer> acquirePush = new AdaptorPushWire<>(Integer.class, 2, 
-				CombinatorOrientation.LEFT_TO_RIGHT);
+				CombinatorOrientation.LEFT_TO_RIGHT, false);
 		AdaptorPushWire<Integer> releastPush = new AdaptorPushWire<>(Integer.class, 2, 
-				CombinatorOrientation.LEFT_TO_RIGHT);
+				CombinatorOrientation.LEFT_TO_RIGHT, false);
 		Fork fork = new Fork(id);
 		
 		return acquirePush.combine(releastPush, CombinationType.VERTICAL)

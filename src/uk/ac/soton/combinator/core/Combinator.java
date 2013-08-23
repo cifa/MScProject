@@ -3,6 +3,8 @@ package uk.ac.soton.combinator.core;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import uk.ac.soton.combinator.core.exception.IllegalCombinationException;
+
 public abstract class Combinator {
 	
 	private final static int LEFT = 0;

@@ -9,7 +9,8 @@ import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
-import uk.ac.soton.combinator.core.RequestFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorTransientFailureException;
 
 public class ReceiveSemaphore<T> extends AbstractSemaphore<T> {
 	
@@ -27,12 +28,12 @@ public class ReceiveSemaphore<T> extends AbstractSemaphore<T> {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		ports.add(Port.getPassiveOutPort(dataType, new PassiveOutPortHandler<T>() {
 			
-			private final RequestFailureException ex = 
-					new RequestFailureException("No Semaphore permission available");
+			private final CombinatorTransientFailureException ex = 
+					new CombinatorTransientFailureException("No Semaphore permission available");
 
 			@SuppressWarnings("unchecked")
 			@Override
-			public Message<? extends T> produce() {
+			public Message<? extends T> produce() throws CombinatorFailureException {
 				if(semaphore.tryAcquire()) {
 					try {
 						return (Message<? extends T>) receiveRight(0);

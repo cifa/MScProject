@@ -21,20 +21,20 @@ public class NoCombTests {
 		treiberStackMsgTest(1000,10000);
 		treiberStackMsgTest(1000,10000);
 		treiberStackMsgTest(1000,10000);
-//		System.out.println("-----------------------------------------------------------------");
-//		eliminationStackTest(1000, 10000);
-//		eliminationStackTest(1000, 10000);
-//		eliminationStackTest(1000, 10000);
-//		eliminationStackTest(1000, 10000);
-//		eliminationStackTest(1000, 10000);
-//		eliminationStackTest(1000, 10000);
-//		System.out.println("-----------------------------------------------------------------");
-//		eliminationStackMsgTest(1000, 10000);
-//		eliminationStackMsgTest(1000, 10000);
-//		eliminationStackMsgTest(1000, 10000);
-//		eliminationStackMsgTest(1000, 10000);
-//		eliminationStackMsgTest(1000, 10000);
-//		eliminationStackMsgTest(1000, 10000);
+		System.out.println("-----------------------------------------------------------------");
+		eliminationStackTest(1000, 10000);
+		eliminationStackTest(1000, 10000);
+		eliminationStackTest(1000, 10000);
+		eliminationStackTest(1000, 10000);
+		eliminationStackTest(1000, 10000);
+		eliminationStackTest(1000, 10000);
+		System.out.println("-----------------------------------------------------------------");
+		eliminationStackMsgTest(1000, 10000);
+		eliminationStackMsgTest(1000, 10000);
+		eliminationStackMsgTest(1000, 10000);
+		eliminationStackMsgTest(1000, 10000);
+		eliminationStackMsgTest(1000, 10000);
+		eliminationStackMsgTest(1000, 10000);
 	}
 	
 	private static void treiberStackTest(int producers, int msgs) {
@@ -126,10 +126,10 @@ public class NoCombTests {
 		long end = System.currentTimeMillis();
 		System.out.println("Elimination Stack execution time: " + (end - start)
 				+ " ms");
-		System.out.println("IN: " + stack.in.get());
-		System.out.println("IN Success: " + stack.inSuc.get());
-		System.out.println("OUT: " + stack.out.get());
-		System.out.println("OUT Success: " + stack.outSuc.get());
+//		System.out.println("IN: " + stack.in.get());
+//		System.out.println("IN Success: " + stack.inSuc.get());
+//		System.out.println("OUT: " + stack.out.get());
+//		System.out.println("OUT Success: " + stack.outSuc.get());
 	}
 	
 	private static void eliminationStackMsgTest(int producers, int msgs) {
@@ -158,11 +158,11 @@ public class NoCombTests {
 			endGate.await();
 		} catch (InterruptedException ex) {}
 		long end = System.currentTimeMillis();
-		System.out.println("Elimination Stack execution time: " + (end - start)
+		System.out.println("Elimination Stack with Msgs execution time: " + (end - start)
 				+ " ms");
-		System.out.println("IN: " + stack.in.get());
-		System.out.println("IN Success: " + stack.inSuc.get());
-		System.out.println("OUT: " + stack.out.get());
-		System.out.println("OUT Success: " + stack.outSuc.get());
+//		System.out.println("IN: " + stack.in.get());
+//		System.out.println("IN Success: " + stack.inSuc.get());
+//		System.out.println("OUT: " + stack.out.get());
+//		System.out.println("OUT Success: " + stack.outSuc.get());
 	}
 }

@@ -6,11 +6,11 @@ import java.util.List;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.DataFlow;
-import uk.ac.soton.combinator.core.InvalidMessageReceivedException;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
-import uk.ac.soton.combinator.core.RequestFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorPermanentFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorTransientFailureException;
 
 public class ChoiceReceiveWire<T> extends Combinator {
 
@@ -45,9 +45,8 @@ public class ChoiceReceiveWire<T> extends Combinator {
 		ports.add(Port.getPassiveOutPort(dataType, new PassiveOutPortHandler<T>() {
 
 			@Override
-			public Message<? extends T> produce() throws RequestFailureException {
+			public Message<? extends T> produce() throws CombinatorPermanentFailureException {
 				int portIndex = 0;
-				//TODO do we really wanna loop forever if all choices always fail?
 				while(true) {
 					try {
 						// try to receive a message on the current choice port
@@ -55,11 +54,7 @@ public class ChoiceReceiveWire<T> extends Combinator {
 						Message<? extends T> msg = (Message<? extends T>) receiveLeft(portIndex);
 						// we've got a message -> return it
 						return msg;
-					} catch(InvalidMessageReceivedException ex) {
-						// Invalid message means we should not retry on
-						// a different port. Just propagate the exception.
-						throw ex;
-					} catch(RequestFailureException ex) {
+					} catch(CombinatorTransientFailureException ex) {
 						// no luck on this port -> move to the next choice
 						if(++portIndex == noOfChoices) {
 							portIndex = 0;

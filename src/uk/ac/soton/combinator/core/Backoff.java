@@ -1,8 +1,8 @@
-package uk.ac.soton.combinator.wire;
+package uk.ac.soton.combinator.core;
 
 import java.util.Random;
 
-class Backoff {
+public class Backoff {
 	
 	private static final int NCPU = Runtime.getRuntime().availableProcessors();
 	

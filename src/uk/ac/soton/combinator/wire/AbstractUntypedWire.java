@@ -5,12 +5,11 @@ import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.ControlType;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
 import uk.ac.soton.combinator.core.PortDefinition;
-import uk.ac.soton.combinator.core.RequestFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorFailureException;
 
 public abstract class AbstractUntypedWire extends Combinator {
 	
@@ -71,7 +70,7 @@ public abstract class AbstractUntypedWire extends Combinator {
 
 		@SuppressWarnings("unchecked")
 		@Override
-		public Message<? extends T> produce() throws RequestFailureException {
+		public Message<? extends T> produce() throws CombinatorFailureException  {
 			if(side == Side.LEFT) {
 				return (Message<? extends T>) receiveLeft(portIndex);
 			} else {
@@ -92,7 +91,7 @@ public abstract class AbstractUntypedWire extends Combinator {
 		
 		@Override
 		public void accept(Message<? extends T> msg)
-				throws MessageFailureException {
+				throws CombinatorFailureException {
 			if(side == Side.LEFT) {
 				sendLeft(msg, portIndex);
 			} else {

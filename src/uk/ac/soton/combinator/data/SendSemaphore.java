@@ -7,9 +7,10 @@ import java.util.concurrent.Semaphore;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.Port;
+import uk.ac.soton.combinator.core.exception.CombinatorFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorTransientFailureException;
 
 public class SendSemaphore<T> extends AbstractSemaphore<T> {
 
@@ -27,11 +28,11 @@ public class SendSemaphore<T> extends AbstractSemaphore<T> {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		ports.add(Port.getPassiveInPort(dataType, new PassiveInPortHandler<T>() {
 			
-			private final MessageFailureException ex = 
-					new MessageFailureException("No Semaphore permission available");
+			private final CombinatorTransientFailureException ex = 
+					new CombinatorTransientFailureException("No Semaphore permission available");
 
 			@Override
-			public void accept(Message<? extends T> msg) {
+			public void accept(Message<? extends T> msg) throws CombinatorFailureException {
 				if(semaphore.tryAcquire()) {
 					try {
 						sendRight(msg, 0);

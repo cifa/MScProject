@@ -11,7 +11,7 @@ import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.MessageValidator;
 import uk.ac.soton.combinator.core.Port;
-import uk.ac.soton.combinator.core.RequestFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorFailureException;
 
 public class CallbackActiveConsumer extends Combinator implements Runnable {
 	
@@ -48,7 +48,7 @@ public class CallbackActiveConsumer extends Combinator implements Runnable {
 				if(Message.validateMessageContent(validator, msg)) {
 					System.out.println(msg.get()); 
 				}
-			} catch(CancellationException | RequestFailureException ex) {
+			} catch(CancellationException | CombinatorFailureException ex) {
 //					System.out.println(ex.getMessage());
 			}		
 		}

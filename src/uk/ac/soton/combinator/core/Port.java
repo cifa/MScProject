@@ -1,5 +1,9 @@
 package uk.ac.soton.combinator.core;
 
+import uk.ac.soton.combinator.core.exception.CombinatorPermanentFailureException;
+import uk.ac.soton.combinator.core.exception.IncompatiblePortsException;
+
+
 public class Port<T> {
 	
 	private final Class<T> portDataType;
@@ -47,9 +51,13 @@ public class Port<T> {
 
 		msg.setCurrentCarrier(Thread.currentThread());
 		
-		// DROP INVALID MESSAGE (is it OK to do that??)
-		if(msg.isCancelled()) {
-			throw new InvalidMessageSentException();
+//		// DROP INVALID MESSAGE (is it OK to do that??)
+//		if(msg.isCancelled()) {
+//			throw new CombinatorPermanentFailureException("Invalid message cannot be sent");
+//		}
+		
+		if(!msg.isActive()) {
+			throw new CombinatorPermanentFailureException("Only active messages can be sent");
 		}
 		
 		if(! msg.isTypeVerified()) {
@@ -74,7 +82,7 @@ public class Port<T> {
 		
 		// DROP INVALID MESSAGE (is it OK to do that??)
 		if(msg.isCancelled()) {
-			throw new InvalidMessageReceivedException();
+			throw new CombinatorPermanentFailureException("Invalid message cannot be received");
 		}
 	
 		return msg;

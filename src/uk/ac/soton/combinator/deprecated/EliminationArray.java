@@ -1,4 +1,4 @@
-package uk.ac.soton.combinator.data;
+package uk.ac.soton.combinator.deprecated;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,11 +9,11 @@ import java.util.concurrent.atomic.AtomicStampedReference;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
-import uk.ac.soton.combinator.core.RequestFailureException;
+import uk.ac.soton.combinator.core.exception.MessageFailureException;
+import uk.ac.soton.combinator.core.exception.RequestFailureException;
 
 @Deprecated
 public class EliminationArray<T> extends Combinator {

@@ -1,16 +1,17 @@
-package uk.ac.soton.combinator.wire;
+package uk.ac.soton.combinator.deprecated;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.WeakHashMap;
 
+import uk.ac.soton.combinator.core.Backoff;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.Port;
+import uk.ac.soton.combinator.core.exception.CombinatorTransientFailureException;
 
 /**
  * Sending a message to the only port exposed by BackoffSendWire never succeeds.
@@ -35,11 +36,12 @@ public class BackoffSendWire<T> extends Combinator {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		ports.add(Port.getPassiveInPort(dataType, new PassiveInPortHandler<T>() {
 			
-				private final MessageFailureException ex = new MessageFailureException();
+				private final CombinatorTransientFailureException  ex = 
+						new CombinatorTransientFailureException();
 
 				@Override
 				public void accept(Message<? extends T> msg)
-						throws MessageFailureException {
+						throws CombinatorTransientFailureException {
 					if(! backoffs.containsKey(msg)) {
 						backoffs.put(msg, new Backoff());
 					}

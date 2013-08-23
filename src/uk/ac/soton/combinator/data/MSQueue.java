@@ -7,11 +7,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
-import uk.ac.soton.combinator.core.RequestFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorEmptyCollectionException;
+import uk.ac.soton.combinator.core.exception.CombinatorFailedCASException;
 
 public class MSQueue<T> extends Combinator {
 	
@@ -30,25 +30,25 @@ public class MSQueue<T> extends Combinator {
 	protected List<Port<?>> initLeftBoundary() {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		ports.add(Port.getPassiveInPort(dataType, new PassiveInPortHandler<T>() {
+			
+			private final CombinatorFailedCASException ex = new CombinatorFailedCASException();
 
 			@Override
-			public void accept(Message<? extends T> msg)
-					throws MessageFailureException {
+			public void accept(Message<? extends T> msg) throws CombinatorFailedCASException {
 				Node<Message<? extends T>> nTail = new Node<Message<? extends T>>(msg, null);
-				while(true) {
-					Node<Message<? extends T>> cTail = tail.get();
-					Node<Message<? extends T>> cNext = cTail.next.get();
-					if(cTail == tail.get()) {
-						if(cNext == null) {
-							if(cTail.next.compareAndSet(null, nTail)) {
-								tail.compareAndSet(cTail, nTail);
-								return;
-							} 
-						} else {
-							tail.compareAndSet(cTail, cNext);
-						}
+				Node<Message<? extends T>> cTail = tail.get();
+				Node<Message<? extends T>> cNext = cTail.next.get();
+				if(cTail == tail.get()) {
+					if(cNext == null) {
+						if(cTail.next.compareAndSet(null, nTail)) {
+							tail.compareAndSet(cTail, nTail);
+							return;
+						} 
+					} else {
+						tail.compareAndSet(cTail, cNext);
 					}
 				}
+				throw ex;
 			}
 			
 		}));
@@ -60,28 +60,31 @@ public class MSQueue<T> extends Combinator {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		ports.add(Port.getPassiveOutPort(dataType, new PassiveOutPortHandler<T>() {
 			
-			private final RequestFailureException ex = new RequestFailureException("Empty queue");
+			private final CombinatorFailedCASException casEx = new CombinatorFailedCASException();
+			private final CombinatorEmptyCollectionException emptyEx = 
+					new CombinatorEmptyCollectionException("Empty queue");
 
 			@Override
-			public Message<? extends T> produce() throws RequestFailureException {
-				while(true) {
-					Node<Message<? extends T>> cHead = head.get();
-					Node<Message<? extends T>> cTail = tail.get();
-					Node<Message<? extends T>> cNext = cHead.next.get();
-					if(cHead == head.get()) {
-						if(cHead == cTail) {
-							if(cNext == null) {
-								throw ex;
-							}
-							tail.compareAndSet(cTail, cNext);
-						} else {
-							Message<? extends T> msg = cNext.value;
-							if(head.compareAndSet(cHead, cNext)) {
-								return msg;
-							}
+			public Message<? extends T> produce() 
+					throws CombinatorFailedCASException, CombinatorEmptyCollectionException {
+				
+				Node<Message<? extends T>> cHead = head.get();
+				Node<Message<? extends T>> cTail = tail.get();
+				Node<Message<? extends T>> cNext = cHead.next.get();
+				if(cHead == head.get()) {
+					if(cHead == cTail) {
+						if(cNext == null) {
+							throw emptyEx;
+						}
+						tail.compareAndSet(cTail, cNext);
+					} else {
+						Message<? extends T> msg = cNext.value;
+						if(head.compareAndSet(cHead, cNext)) {
+							return msg;
 						}
 					}
 				}
+				throw casEx;
 			}
 		}));
 		return ports;

@@ -1,18 +1,18 @@
-package uk.ac.soton.combinator.wire;
+package uk.ac.soton.combinator.deprecated;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import uk.ac.soton.combinator.core.BoundaryInitializationException;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.Port;
+import uk.ac.soton.combinator.core.exception.BoundaryInitializationException;
+import uk.ac.soton.combinator.core.exception.CombinatorFailureException;
 
 /**
  * Initial attempt at permute wires - not very flexible
@@ -77,7 +77,7 @@ public class PermutePushWire extends Combinator {
 		
 		@Override
 		public void accept(Message<? extends Object> msg)
-				throws MessageFailureException {
+				throws CombinatorFailureException {
 			sendRight(msg, portIndex);
 		}
 	};

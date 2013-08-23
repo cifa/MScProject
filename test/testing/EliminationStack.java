@@ -10,8 +10,8 @@ import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.Port;
-import uk.ac.soton.combinator.data.BackOffTreiberStack;
-import uk.ac.soton.combinator.data.EliminationExchanger2;
+import uk.ac.soton.combinator.data.TreiberStack;
+import uk.ac.soton.combinator.data.EliminationExchanger;
 import uk.ac.soton.combinator.wire.AdaptorPullWire;
 import uk.ac.soton.combinator.wire.ChoiceReceiveWire;
 import uk.ac.soton.combinator.wire.ChoiceSendWire;
@@ -24,10 +24,10 @@ public class EliminationStack<T> extends Combinator implements IStack<T> {
 				Object.class, 2, combinatorOrientation);
 		ChoiceReceiveWire<Object> receiveChoice = new ChoiceReceiveWire<>(
 				Object.class, 2, combinatorOrientation);
-		BackOffTreiberStack<Object> stack = new BackOffTreiberStack<>(
+		TreiberStack<Object> stack = new TreiberStack<>(
 				Object.class, combinatorOrientation);
-		EliminationExchanger2<Object> eliminationExchanger = 
-				new EliminationExchanger2<>(Object.class, combinatorOrientation);
+		EliminationExchanger<Object> eliminationExchanger = 
+				new EliminationExchanger<>(Object.class, combinatorOrientation);
 		
 		Combinator eliminationStack = sendChoice
 				.combine(

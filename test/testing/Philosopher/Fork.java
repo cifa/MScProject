@@ -9,9 +9,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.Port;
+import uk.ac.soton.combinator.core.exception.CombinatorFailedCASException;
+import uk.ac.soton.combinator.core.exception.CombinatorFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorPermanentFailureException;
 
 public class Fork extends Combinator {
 	
@@ -19,7 +21,6 @@ public class Fork extends Combinator {
 	
 	private final AtomicInteger holder;
 	private final int id;
-	private final MessageFailureException ex = new MessageFailureException();
 	
 	public Fork(int id) {
 		holder = new AtomicInteger();
@@ -32,19 +33,20 @@ public class Fork extends Combinator {
 		ports.add(Port.getPassiveInPort(Integer.class, new PassiveInPortHandler<Integer>() {
 			// Philosophers can request the fork on port 0
 			@Override
-			public void accept(Message<? extends Integer> msg) {
+			public void accept(Message<? extends Integer> msg) throws CombinatorFailureException {
 				if(rand.nextInt(1000) > 990) {
 					System.out.println("Fork " + id + " CANCELLING message");
 					msg.cancel(false);
 				}
 				try {
 					if(!holder.compareAndSet(0, msg.get())) {
-						throw ex;
+						throw new CombinatorFailedCASException("Phil " + msg.get() + " failed to " +
+								"grab fork " + id);
 					}
 //					System.out.println("Fork " + id + " held by " + msg.get());
 				} catch(CancellationException e) {
 					System.out.println("Fork " + id + " detected CANCELLED message");
-					throw ex;
+					throw new CombinatorPermanentFailureException();
 				}
 			}
 		}));
@@ -53,7 +55,8 @@ public class Fork extends Combinator {
 			@Override
 			public void accept(Message<? extends Integer> msg) {
 				if(!holder.compareAndSet(msg.get(), 0)) {
-					throw ex;
+					throw new CombinatorFailedCASException("Phil " + msg.get() + " failed to " +
+							"return fork " + id);
 				}
 			}
 		}));

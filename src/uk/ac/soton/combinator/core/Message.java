@@ -147,7 +147,7 @@ public class Message<T> implements Future<T> {
 				break;
 			} else {
 				// check if fully acknowledged now 
-				if(runFullAcknowledgementCheck()) {
+				if(fullAcknowledgementCheck()) {
 					// fully acknowledged -> return content
 					break;
 				}
@@ -172,7 +172,7 @@ public class Message<T> implements Future<T> {
 				 *       in the constructor and adding the tread before the first
 				 *       runFullAcknowledgementCheck() call?
 				 */
-				runFullAcknowledgementCheck();
+				fullAcknowledgementCheck();
 				
 				/*
 				 * We need to wait if message state is still active.
@@ -207,7 +207,7 @@ public class Message<T> implements Future<T> {
 						"content of an invalidated message");
 			}
 			
-			if(runFullAcknowledgementCheck()) {
+			if(fullAcknowledgementCheck()) {
 				// fully acknowledged -> return content
 				return content;
 			}
@@ -312,9 +312,13 @@ public class Message<T> implements Future<T> {
 	public boolean isDone() {
 		if(messageState.get() == ACTIVE) {
 			// can it be fully acknowledged now?
-			runFullAcknowledgementCheck();
+			fullAcknowledgementCheck();
 		}
 		return messageState.get() != ACTIVE;
+	}
+	
+	public boolean isActive() {
+		return messageState.get() == ACTIVE;
 	}
 	
 	public Class<T> getMessageDataType() {
@@ -399,7 +403,7 @@ public class Message<T> implements Future<T> {
 		currentCarrier = t;
 	}
 	
-	private synchronized boolean runFullAcknowledgementCheck() {
+	private synchronized boolean fullAcknowledgementCheck() {
 		fullAcknowledgementRunner = Thread.currentThread();
 		boolean ack = isMessageFullyAcknowledged();
 		fullAcknowledgementRunner = null;
@@ -463,8 +467,9 @@ public class Message<T> implements Future<T> {
 	}
 	
 	private boolean isWrapperAck() {
+		Set<Message<T>> wrappers = wrapperMsgs;
 		// top level wrapper returns its acknowledge value 
-		if(wrapperMsgs == null) {
+		if(wrappers == null) {
 			if(! Thread.currentThread().equals(fullAcknowledgementRunner)) {
 				unparkWaiters();
 			}
@@ -472,7 +477,7 @@ public class Message<T> implements Future<T> {
 		}
 		// otherwise we go up the hierarchy
 		boolean ack = true;
-		for(Message<T> msg : wrapperMsgs) {
+		for(Message<T> msg : wrappers) {
 			if(! msg.isWrapperAck()) {
 				ack = false;
 				break;

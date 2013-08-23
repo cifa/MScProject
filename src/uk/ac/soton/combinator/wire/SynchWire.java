@@ -10,13 +10,20 @@ import java.util.concurrent.locks.ReentrantLock;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
-import uk.ac.soton.combinator.core.RequestFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorPermanentFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorTransientFailureException;
 
 public class SynchWire<T> extends Combinator {
+	
+	private static final CombinatorPermanentFailureException PERMANENT_EXCEPTION = 
+			new CombinatorPermanentFailureException("Exchange message invalidated");
+	
+	private static final CombinatorTransientFailureException TRANSIENT_EXCEPTION =
+			new CombinatorTransientFailureException("Exchange timeout");
 	
 	private final Class<T> dataType;
 	private final int timeout;
@@ -40,12 +47,10 @@ public class SynchWire<T> extends Combinator {
 	protected List<Port<?>> initLeftBoundary() {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		ports.add(Port.getPassiveInPort(dataType, new PassiveInPortHandler<T>() {
-			
-			private final MessageFailureException ex = new MessageFailureException();
 
 			@Override
 			public void accept(Message<? extends T> msg)
-					throws MessageFailureException {
+					throws CombinatorFailureException {
 				
 				mutexIn.lock();
 				try {
@@ -54,9 +59,12 @@ public class SynchWire<T> extends Combinator {
 					} else {
 						exchanger.exchange(msg);
 					}	
-				} catch (InterruptedException | TimeoutException e) {
-					// no exchange -> fail
-					throw ex;
+				} catch (InterruptedException ex) {
+					// message has been invalidated -> permanent exception 
+					throw PERMANENT_EXCEPTION;
+				} catch (TimeoutException ex) {
+					// timeout is a transient failure
+					throw TRANSIENT_EXCEPTION;
 				} finally {
 					mutexIn.unlock();
 				}
@@ -70,10 +78,8 @@ public class SynchWire<T> extends Combinator {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		ports.add(Port.getPassiveOutPort(dataType, new PassiveOutPortHandler<T>() {
 			
-			private final RequestFailureException ex = new RequestFailureException("Bound busy");
-
 			@Override
-			public Message<? extends T> produce() throws RequestFailureException {
+			public Message<? extends T> produce() throws CombinatorFailureException {
 				mutexOut.lock();
 				try {
 					Message<? extends T> msg;
@@ -83,9 +89,12 @@ public class SynchWire<T> extends Combinator {
 						msg = exchanger.exchange(null);
 					}
 					return msg;
-				} catch (InterruptedException | TimeoutException e) {
-					// no exchange -> fail
-					throw ex;
+				} catch (InterruptedException ex) {
+					// this should not really happen
+					throw new CombinatorPermanentFailureException();
+				} catch (TimeoutException ex) {
+					// timeout is a transient failure
+					throw TRANSIENT_EXCEPTION;
 				} finally{
 					mutexOut.unlock();
 				}

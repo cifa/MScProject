@@ -11,16 +11,16 @@ import uk.ac.soton.combinator.core.CombinatorThreadPool;
 import uk.ac.soton.combinator.core.ControlType;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.PortDefinition;
-import uk.ac.soton.combinator.data.BackOffTreiberStack;
-import uk.ac.soton.combinator.data.EliminationArray;
+import uk.ac.soton.combinator.data.TreiberStack;
 import uk.ac.soton.combinator.data.EliminationExchanger;
-import uk.ac.soton.combinator.data.EliminationExchanger2;
-import uk.ac.soton.combinator.data.EliminationExchanger3;
 import uk.ac.soton.combinator.data.MSQueue;
-import uk.ac.soton.combinator.data.Mutex;
 import uk.ac.soton.combinator.data.ReceiveSemaphore;
 import uk.ac.soton.combinator.data.SendSemaphore;
-import uk.ac.soton.combinator.data.TreiberStack;
+import uk.ac.soton.combinator.deprecated.EliminationArray;
+import uk.ac.soton.combinator.deprecated.EliminationExchanger1;
+import uk.ac.soton.combinator.deprecated.EliminationExchanger3;
+import uk.ac.soton.combinator.deprecated.Mutex;
+import uk.ac.soton.combinator.deprecated.TreiberStackOld;
 import uk.ac.soton.combinator.wire.CopyWire;
 import uk.ac.soton.combinator.wire.AdaptorPullWire;
 import uk.ac.soton.combinator.wire.JoinPullWire;
@@ -38,44 +38,39 @@ public class Main {
 //		simpleOneToOne();
 //		simpleManyToOneWithPushAdaptor();
 //		simpleManyToOneWithPushAdaptor2();
-		// treiberStackWithMultipleProducersAndConsumers();
-		// boundedStackWithMultipleProducersAndConsumers();
-//	    eliminationStackWithMultipleProducersAndConsumers(100, 1000);
 //		treiberStackTest(1000, 10000);
 //		treiberStackTest(1000, 10000);
 //		treiberStackTest(1000, 10000);
 //		treiberStackTest(1000, 10000);
 //		treiberStackTest(1000, 10000);
 //		treiberStackTest(1000, 10000);
-//		eliminationStackWithSemaphoresTest(200,100);
-//		eliminationStackWithSemaphoresTest(200,100);
+//		System.out.println("-----------------------------------------------------------------");
 //		eliminationStackWithSemaphoresAndExchangerTest(1000,10000);
 //		eliminationStackWithSemaphoresAndExchangerTest(1000,10000);
 //		eliminationStackWithSemaphoresAndExchangerTest(1000,10000);
 //		eliminationStackWithSemaphoresAndExchangerTest(1000,10000);
 //		eliminationStackWithSemaphoresAndExchangerTest(1000,10000);
 //		eliminationStackWithSemaphoresAndExchangerTest(1000,10000);
-//		eliminationStackTest(1000, 1000);
-//		eliminationStackTest(1000, 1000);
-//		eliminationStackArrayFirstTest(100, 1000);
-//		eliminationBackOffStackTest(1000, 10000);
-//		eliminationBackOffStackTest(1000, 10000);
-//		eliminationBackOffStackTest(1000, 10000);
-//		eliminationBackOffStackTest(1000, 10000);
-//		eliminationBackOffStackTest(1000, 10000);
-//		eliminationBackOffStackTest(1000, 10000);
-//		eliminationArrayTest(10, 100);
+//		System.out.println("-----------------------------------------------------------------");
+		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 10000);
+		eliminationBackOffStackTest(1000, 10000);
+//		System.out.println("-----------------------------------------------------------------");
 //		eliminationExchangerTest(1000, 10000);
 //		eliminationExchangerTest(1000, 10000);
 //		eliminationExchangerTest(1000, 10000);
 //		eliminationExchangerTest(1000, 10000);
 //		eliminationExchangerTest(1000, 10000);
 //		eliminationExchangerTest(1000, 10000);
-//		synchWireTest(1000);
-//		synchWireTestRigtToLeft(100);
+//		System.out.println("-----------------------------------------------------------------");
+//		synchWireTest(100,100);
+//		synchWireTestRigtToLeft(100,100);
 //		copyWireTest(10, 100);
-		copyAndJoinWithTwoStacksTest(10, 1);
-		copyAndJoinWithTwoQueuesTest(100,1000);
+//		copyAndJoinWithTwoStacksTest(100, 1000);
+//		copyAndJoinWithTwoQueuesTest(100, 1000);
 //		permuteWirePortTest();
 //		permuteWiresTest(10);
 //		joinPushWireTest();
@@ -136,196 +131,6 @@ public class Main {
 		new Thread(p3).start();
 	}
 
-	private static void treiberStackWithMultipleProducersAndConsumers() {
-		SimpleProducer p1 = new SimpleProducer(4, CombinatorOrientation.LEFT_TO_RIGHT);
-		SimpleProducer p2 = new SimpleProducer(4, CombinatorOrientation.LEFT_TO_RIGHT);
-		SimpleProducer p3 = new SimpleProducer(4, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		PullConsumer<Integer> c1 = new PullConsumer<>(Integer.class,
-				4, CombinatorOrientation.LEFT_TO_RIGHT);
-		PullConsumer<Integer> c2 = new PullConsumer<>(Integer.class,
-				4, CombinatorOrientation.LEFT_TO_RIGHT);
-		PullConsumer<Integer> c3 = new PullConsumer<>(Integer.class,
-				4, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		AdaptorPushWire<Integer> leftAdaptor = new AdaptorPushWire<>(
-				Integer.class, 3, CombinatorOrientation.LEFT_TO_RIGHT);
-		AdaptorPullWire<Integer> rightAdaptor = new AdaptorPullWire<>(
-				Integer.class, 3, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		TreiberStack<Integer> stack = new TreiberStack<>(Integer.class,
-				CombinatorOrientation.LEFT_TO_RIGHT);
-
-		Combinator producers = p1.combine(p2, CombinationType.VERTICAL)
-				.combine(p3, CombinationType.VERTICAL);
-		Combinator consumers = c1.combine(c2, CombinationType.VERTICAL)
-				.combine(c3, CombinationType.VERTICAL);
-
-		producers.combine(leftAdaptor, CombinationType.HORIZONTAL)
-				.combine(stack, CombinationType.HORIZONTAL)
-				.combine(rightAdaptor, CombinationType.HORIZONTAL)
-				.combine(consumers, CombinationType.HORIZONTAL);
-
-		new Thread(p1).start();
-		new Thread(p2).start();
-		new Thread(p3).start();
-		new Thread(c1).start();
-		new Thread(c2).start();
-		new Thread(c3).start();
-	}
-
-	private static void boundedStackWithMultipleProducersAndConsumers() {
-		SimpleProducer p1 = new SimpleProducer(4, CombinatorOrientation.LEFT_TO_RIGHT);
-		SimpleProducer p2 = new SimpleProducer(4, CombinatorOrientation.LEFT_TO_RIGHT);
-		SimpleProducer p3 = new SimpleProducer(4, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		PullConsumer<Integer> c1 = new PullConsumer<>(Integer.class,
-				4, CombinatorOrientation.LEFT_TO_RIGHT);
-		PullConsumer<Integer> c2 = new PullConsumer<>(Integer.class,
-				4, CombinatorOrientation.LEFT_TO_RIGHT);
-		PullConsumer<Integer> c3 = new PullConsumer<>(Integer.class,
-				4, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		AdaptorPushWire<Integer> leftAdaptor = new AdaptorPushWire<>(
-				Integer.class, 3, CombinatorOrientation.LEFT_TO_RIGHT);
-		AdaptorPullWire<Integer> rightAdaptor = new AdaptorPullWire<>(
-				Integer.class, 3, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		TreiberStack<Integer> stack = new TreiberStack<>(Integer.class,
-				CombinatorOrientation.LEFT_TO_RIGHT);
-		Mutex<Integer> bound = new Mutex<>(Integer.class,
-				CombinatorOrientation.LEFT_TO_RIGHT);
-
-		Combinator producers = p1.combine(p2, CombinationType.VERTICAL)
-				.combine(p3, CombinationType.VERTICAL);
-		Combinator consumers = c1.combine(c2, CombinationType.VERTICAL)
-				.combine(c3, CombinationType.VERTICAL);
-		Combinator boundedStack = bound.LeftBound.combine(stack,
-				CombinationType.HORIZONTAL).combine(bound.RightBound,
-				CombinationType.HORIZONTAL);
-
-		producers.combine(leftAdaptor, CombinationType.HORIZONTAL)
-				.combine(boundedStack, CombinationType.HORIZONTAL)
-				.combine(rightAdaptor, CombinationType.HORIZONTAL)
-				.combine(consumers, CombinationType.HORIZONTAL);
-
-		new Thread(p1).start();
-		new Thread(p2).start();
-		new Thread(p3).start();
-		new Thread(c1).start();
-		new Thread(c2).start();
-		new Thread(c3).start();
-	}
-
-	private static void eliminationStackWithMultipleProducersAndConsumers() {
-		SimpleProducer p1 = new SimpleProducer(4, CombinatorOrientation.LEFT_TO_RIGHT);
-		SimpleProducer p2 = new SimpleProducer(4, CombinatorOrientation.LEFT_TO_RIGHT);
-		SimpleProducer p3 = new SimpleProducer(4, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		PullConsumer<Integer> c1 = new PullConsumer<>(Integer.class,
-				4, CombinatorOrientation.LEFT_TO_RIGHT);
-		PullConsumer<Integer> c2 = new PullConsumer<>(Integer.class,
-				4, CombinatorOrientation.LEFT_TO_RIGHT);
-		PullConsumer<Integer> c3 = new PullConsumer<>(Integer.class,
-				4, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		AdaptorPushWire<Integer> leftAdaptor = new AdaptorPushWire<>(
-				Integer.class, 3, CombinatorOrientation.LEFT_TO_RIGHT);
-		AdaptorPullWire<Integer> rightAdaptor = new AdaptorPullWire<>(
-				Integer.class, 3, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		TreiberStack<Integer> stack = new TreiberStack<>(Integer.class,
-				CombinatorOrientation.LEFT_TO_RIGHT);
-		Mutex<Integer> bound = new Mutex<>(Integer.class,
-				CombinatorOrientation.LEFT_TO_RIGHT);
-		EliminationArray<Integer> eliminationArray = new EliminationArray<>(
-				Integer.class, CombinatorOrientation.LEFT_TO_RIGHT, 3, 100);
-
-		ChoiceSendWire<Integer> sendChoice = new ChoiceSendWire<>(
-				Integer.class, 2, CombinatorOrientation.LEFT_TO_RIGHT);
-		ChoiceReceiveWire<Integer> receiveChoice = new ChoiceReceiveWire<>(
-				Integer.class, 2, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		Combinator producers = p1.combine(p2, CombinationType.VERTICAL)
-				.combine(p3, CombinationType.VERTICAL);
-		Combinator consumers = c1.combine(c2, CombinationType.VERTICAL)
-				.combine(c3, CombinationType.VERTICAL);
-		Combinator eliminationStack = bound.LeftBound
-				.combine(stack, CombinationType.HORIZONTAL)
-				.combine(bound.RightBound, CombinationType.HORIZONTAL)
-				.combine(eliminationArray, CombinationType.VERTICAL);
-
-		producers.combine(leftAdaptor, CombinationType.HORIZONTAL)
-				.combine(sendChoice, CombinationType.HORIZONTAL)
-				.combine(eliminationStack, CombinationType.HORIZONTAL)
-				.combine(receiveChoice, CombinationType.HORIZONTAL)
-				.combine(rightAdaptor, CombinationType.HORIZONTAL)
-				.combine(consumers, CombinationType.HORIZONTAL);
-
-		new Thread(p1).start();
-		new Thread(p2).start();
-		new Thread(p3).start();
-		new Thread(c1).start();
-		new Thread(c2).start();
-		new Thread(c3).start();
-	}
-
-	private static void eliminationStackWithMultipleProducersAndConsumers(
-			int noOfProducers, int msgsPerProducer) {
-		SimpleProducer[] ps = new SimpleProducer[noOfProducers];
-		@SuppressWarnings("unchecked")
-		PullConsumer<Integer>[] cs = (PullConsumer<Integer>[]) new PullConsumer<?>[noOfProducers];
-
-		ps[0] = new SimpleProducer(msgsPerProducer, CombinatorOrientation.LEFT_TO_RIGHT);
-		cs[0] = new PullConsumer<>(Integer.class,
-				msgsPerProducer, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		Combinator producers = ps[0];
-		Combinator consumers = cs[0];
-
-		for (int i = 1; i < noOfProducers; i++) {
-			ps[i] = new SimpleProducer(msgsPerProducer, CombinatorOrientation.LEFT_TO_RIGHT);
-			cs[i] = new PullConsumer<>(Integer.class,
-					msgsPerProducer, CombinatorOrientation.LEFT_TO_RIGHT);
-			producers = producers.combine(ps[i], CombinationType.VERTICAL);
-			consumers = consumers.combine(cs[i], CombinationType.VERTICAL);
-		}
-
-		AdaptorPushWire<Integer> leftAdaptor = new AdaptorPushWire<>(
-				Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
-		AdaptorPullWire<Integer> rightAdaptor = new AdaptorPullWire<>(
-				Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		TreiberStack<Integer> stack = new TreiberStack<>(Integer.class,
-				CombinatorOrientation.LEFT_TO_RIGHT);
-		Mutex<Integer> bound = new Mutex<>(Integer.class,
-				CombinatorOrientation.LEFT_TO_RIGHT);
-		EliminationArray<Integer> eliminationArray = new EliminationArray<>(
-				Integer.class, CombinatorOrientation.LEFT_TO_RIGHT, 3, 100);
-
-		ChoiceSendWire<Integer> sendChoice = new ChoiceSendWire<>(
-				Integer.class, 2, CombinatorOrientation.LEFT_TO_RIGHT);
-		ChoiceReceiveWire<Integer> receiveChoice = new ChoiceReceiveWire<>(
-				Integer.class, 2, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		Combinator eliminationStack = bound.LeftBound
-				.combine(stack, CombinationType.HORIZONTAL)
-				.combine(bound.RightBound, CombinationType.HORIZONTAL)
-				.combine(eliminationArray, CombinationType.VERTICAL);
-
-		producers.combine(leftAdaptor, CombinationType.HORIZONTAL)
-				.combine(sendChoice, CombinationType.HORIZONTAL)
-				.combine(eliminationStack, CombinationType.HORIZONTAL)
-				.combine(receiveChoice, CombinationType.HORIZONTAL)
-				.combine(rightAdaptor, CombinationType.HORIZONTAL)
-				.combine(consumers, CombinationType.HORIZONTAL);
-
-		for (int i = 0; i < noOfProducers; i++) {
-			new Thread(ps[i]).start();
-			new Thread(cs[i]).start();
-		}
-	}
-
 	private static void treiberStackTest(int noOfProducers, int msgsPerProducer) {
 		final CountDownLatch startGate = new CountDownLatch(1);
 		final CountDownLatch endGate = new CountDownLatch(noOfProducers * 2);
@@ -362,125 +167,6 @@ public class Main {
 		System.out.println("Treiber Stack execution time: " + (end - start)
 				+ " ms");
 	}
-
-	private static void eliminationStackTest(int noOfProducers, int msgsPerProducer) {
-		final CountDownLatch startGate = new CountDownLatch(1);
-		final CountDownLatch endGate = new CountDownLatch(noOfProducers * 2);
-
-		Combinator producers = initProducers(noOfProducers, msgsPerProducer, startGate, endGate);
-		Combinator consumers = initPullConsumers(noOfProducers, msgsPerProducer, startGate, endGate);
-
-		AdaptorPushWire<Integer> leftAdaptor = new AdaptorPushWire<>(
-				Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
-		AdaptorPullWire<Integer> rightAdaptor = new AdaptorPullWire<>(
-				Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		TreiberStack<Integer> stack = new TreiberStack<>(Integer.class,
-				CombinatorOrientation.LEFT_TO_RIGHT);
-		Mutex<Integer> bound = new Mutex<>(Integer.class,
-				CombinatorOrientation.LEFT_TO_RIGHT);
-		EliminationArray<Integer> eliminationArray = new EliminationArray<>(
-				Integer.class, CombinatorOrientation.LEFT_TO_RIGHT, 10, 2);
-		
-		EliminationExchanger<Integer> eliminationExchanger = 
-				new EliminationExchanger<>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		ChoiceSendWire<Integer> sendChoice = new ChoiceSendWire<>(
-				Integer.class, 2, CombinatorOrientation.LEFT_TO_RIGHT);
-		ChoiceReceiveWire<Integer> receiveChoice = new ChoiceReceiveWire<>(
-				Integer.class, 2, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		Combinator eliminationStack = bound.LeftBound
-				.combine(stack, CombinationType.HORIZONTAL)
-				.combine(bound.RightBound, CombinationType.HORIZONTAL)
-				.combine(eliminationExchanger, CombinationType.VERTICAL);
-
-		producers.combine(leftAdaptor, CombinationType.HORIZONTAL)
-				.combine(sendChoice, CombinationType.HORIZONTAL)
-				.combine(eliminationStack, CombinationType.HORIZONTAL)
-				.combine(receiveChoice, CombinationType.HORIZONTAL)
-				.combine(rightAdaptor, CombinationType.HORIZONTAL)
-				.combine(consumers, CombinationType.HORIZONTAL);
-
-		// run the test
-		try {
-			// back off to let all other threads initialise
-			Thread.sleep(100);
-		} catch (InterruptedException e) {}
-
-		long start = System.currentTimeMillis();
-		startGate.countDown();
-		try {
-			endGate.await();
-		} catch (InterruptedException ex) {
-		}
-		long end = System.currentTimeMillis();
-		System.out.println("Elimination Stack with Mutex execution time: " + (end - start)
-				+ " ms");
-//		System.out.println("IN: " + eliminationExchanger.in.get());
-//		System.out.println("IN Offered: " + eliminationExchanger.off.get());
-//		System.out.println("IN Success: " + eliminationExchanger.inSuc.get());
-//		System.out.println("OUT: " + eliminationExchanger.out.get());
-//		System.out.println("OUT Success: " + eliminationExchanger.outSuc.get());
-//		System.out.println("Stack SIZE: " + stack.size.get());
-//		System.out.println("IN: " + eliminationArray.in.get());
-//		System.out.println("OUT: " + eliminationArray.out.get());
-	}
-	
-	private static void eliminationStackWithSemaphoresTest(int noOfProducers, int msgsPerProducer) {
-		final CountDownLatch startGate = new CountDownLatch(1);
-		final CountDownLatch endGate = new CountDownLatch(noOfProducers * 2);
-
-		Combinator producers = initProducers(noOfProducers, msgsPerProducer, startGate, endGate);
-		Combinator consumers = initPullConsumers(noOfProducers, msgsPerProducer, startGate, endGate);
-
-		AdaptorPushWire<Integer> leftAdaptor = new AdaptorPushWire<>(
-				Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
-		AdaptorPullWire<Integer> rightAdaptor = new AdaptorPullWire<>(
-				Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		TreiberStack<Integer> stack = new TreiberStack<>(Integer.class,
-				CombinatorOrientation.LEFT_TO_RIGHT);
-		SendSemaphore<Integer> leftSemaphore = new SendSemaphore<>(Integer.class, 
-				10, CombinatorOrientation.LEFT_TO_RIGHT);
-		ReceiveSemaphore<Integer> rightSemaphore = new ReceiveSemaphore<>(Integer.class,
-				leftSemaphore, CombinatorOrientation.RIGHT_TO_LEFT);
-		EliminationArray<Integer> eliminationArray = new EliminationArray<>(
-				Integer.class, CombinatorOrientation.LEFT_TO_RIGHT, 10, 2);
-
-		ChoiceSendWire<Integer> sendChoice = new ChoiceSendWire<>(
-				Integer.class, 2, CombinatorOrientation.LEFT_TO_RIGHT);
-		ChoiceReceiveWire<Integer> receiveChoice = new ChoiceReceiveWire<>(
-				Integer.class, 2, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		Combinator eliminationStack = leftSemaphore
-				.combine(stack, CombinationType.HORIZONTAL)
-				.combine(rightSemaphore, CombinationType.HORIZONTAL)
-				.combine(eliminationArray, CombinationType.VERTICAL);
-
-		producers.combine(leftAdaptor, CombinationType.HORIZONTAL)
-				.combine(sendChoice, CombinationType.HORIZONTAL)
-				.combine(eliminationStack, CombinationType.HORIZONTAL)
-				.combine(receiveChoice, CombinationType.HORIZONTAL)
-				.combine(rightAdaptor, CombinationType.HORIZONTAL)
-				.combine(consumers, CombinationType.HORIZONTAL);
-
-		// run the test
-		try {
-			// back off to let all other threads initialise
-			Thread.sleep(100);
-		} catch (InterruptedException e) {}
-
-		long start = System.currentTimeMillis();
-		startGate.countDown();
-		try {
-			endGate.await();
-		} catch (InterruptedException ex) {
-		}
-		long end = System.currentTimeMillis();
-		System.out.println("Elimination Stack with Semaphores execution time: " + (end - start)
-				+ " ms");
-	}
 	
 	private static void eliminationStackWithSemaphoresAndExchangerTest(int noOfProducers, int msgsPerProducer) {
 		final CountDownLatch startGate = new CountDownLatch(1);
@@ -494,14 +180,14 @@ public class Main {
 		AdaptorPullWire<Integer> rightAdaptor = new AdaptorPullWire<>(
 				Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
 
-		TreiberStack<Integer> stack = new TreiberStack<>(Integer.class,
+		TreiberStackOld<Integer> stack = new TreiberStackOld<>(Integer.class,
 				CombinatorOrientation.LEFT_TO_RIGHT);
 		SendSemaphore<Integer> leftSemaphore = new SendSemaphore<>(Integer.class, 
 				8, CombinatorOrientation.LEFT_TO_RIGHT);
 		ReceiveSemaphore<Integer> rightSemaphore = new ReceiveSemaphore<>(Integer.class,
 				leftSemaphore, CombinatorOrientation.RIGHT_TO_LEFT);
-		EliminationExchanger2<Integer> eliminationExchanger = 
-				new EliminationExchanger2<>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
+		EliminationExchanger<Integer> eliminationExchanger = 
+				new EliminationExchanger<>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
 
 		ChoiceSendWire<Integer> sendChoice = new ChoiceSendWire<>(
 				Integer.class, 2, CombinatorOrientation.LEFT_TO_RIGHT);
@@ -541,60 +227,6 @@ public class Main {
 		System.out.println("OUT: " + eliminationExchanger.out.get());
 		System.out.println("OUT Success: " + eliminationExchanger.outSuc.get());
 	}
-	
-	private static void eliminationStackArrayFirstTest(int noOfProducers, int msgsPerProducer) {
-		final CountDownLatch startGate = new CountDownLatch(1);
-		final CountDownLatch endGate = new CountDownLatch(noOfProducers * 2);
-
-		Combinator producers = initProducers(noOfProducers, msgsPerProducer, startGate, endGate);
-		Combinator consumers = initPullConsumers(noOfProducers, msgsPerProducer, startGate, endGate);
-
-		AdaptorPushWire<Integer> leftAdaptor = new AdaptorPushWire<>(
-				Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
-		AdaptorPullWire<Integer> rightAdaptor = new AdaptorPullWire<>(
-				Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		TreiberStack<Integer> stack = new TreiberStack<>(Integer.class,
-				CombinatorOrientation.LEFT_TO_RIGHT);
-		Mutex<Integer> bound = new Mutex<>(Integer.class,
-				CombinatorOrientation.LEFT_TO_RIGHT);
-		EliminationArray<Integer> eliminationArray = new EliminationArray<>(
-				Integer.class, CombinatorOrientation.LEFT_TO_RIGHT, 10, 2);
-
-		ChoiceSendWire<Integer> sendChoice = new ChoiceSendWire<>(
-				Integer.class, 2, CombinatorOrientation.LEFT_TO_RIGHT);
-		ChoiceReceiveWire<Integer> receiveChoice = new ChoiceReceiveWire<>(
-				Integer.class, 2, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		Combinator eliminationStack = eliminationArray.combine(
-					(bound.LeftBound
-					.combine(stack, CombinationType.HORIZONTAL)
-					.combine(bound.RightBound, CombinationType.HORIZONTAL))
-				, CombinationType.VERTICAL);
-
-		producers.combine(leftAdaptor, CombinationType.HORIZONTAL)
-				.combine(sendChoice, CombinationType.HORIZONTAL)
-				.combine(eliminationStack, CombinationType.HORIZONTAL)
-				.combine(receiveChoice, CombinationType.HORIZONTAL)
-				.combine(rightAdaptor, CombinationType.HORIZONTAL)
-				.combine(consumers, CombinationType.HORIZONTAL);
-
-		// run the test
-		try {
-			// back off to let all other threads initialise
-			Thread.sleep(100);
-		} catch (InterruptedException e) {}
-
-		long start = System.currentTimeMillis();
-		startGate.countDown();
-		try {
-			endGate.await();
-		} catch (InterruptedException ex) {
-		}
-		long end = System.currentTimeMillis();
-		System.out.println("Elimination Stack (Array First Choice) execution time: " + (end - start)
-				+ " ms");
-	}
 
 	private static void eliminationBackOffStackTest(int noOfProducers, int msgsPerProducer) {
 		final CountDownLatch startGate = new CountDownLatch(1);
@@ -608,12 +240,10 @@ public class Main {
 		AdaptorPullWire<Integer> rightAdaptor = new AdaptorPullWire<>(
 				Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
 
-		BackOffTreiberStack<Integer> stack = new BackOffTreiberStack<>(
+		TreiberStack<Integer> stack = new TreiberStack<>(
 				Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
-		EliminationArray<Integer> eliminationArray = new EliminationArray<>(
-				Integer.class, CombinatorOrientation.LEFT_TO_RIGHT, 10, 3);
-		EliminationExchanger2<Integer> eliminationExchanger = 
-				new EliminationExchanger2<>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
+		EliminationExchanger<Integer> eliminationExchanger = 
+				new EliminationExchanger<>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
 
 		ChoiceSendWire<Integer> sendChoice = new ChoiceSendWire<>(
 				Integer.class, 2, CombinatorOrientation.LEFT_TO_RIGHT);
@@ -655,44 +285,6 @@ public class Main {
 		System.out.println("OUT Success: " + eliminationExchanger.outSuc.get());
 	}
 	
-	private static void eliminationArrayTest(int noOfProducers, int msgsPerProducer) {
-		final CountDownLatch startGate = new CountDownLatch(1);
-		final CountDownLatch endGate = new CountDownLatch(noOfProducers * 2);
-
-		Combinator producers = initProducers(noOfProducers, msgsPerProducer, startGate, endGate);
-		Combinator consumers = initPullConsumers(noOfProducers, msgsPerProducer, startGate, endGate);
-
-		AdaptorPushWire<Integer> leftAdaptor = new AdaptorPushWire<>(
-				Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
-		AdaptorPullWire<Integer> rightAdaptor = new AdaptorPullWire<>(
-				Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
-
-		EliminationArray<Integer> eliminationArray = new EliminationArray<>(
-				Integer.class, CombinatorOrientation.LEFT_TO_RIGHT, 5, 2);
-
-
-		producers.combine(leftAdaptor, CombinationType.HORIZONTAL)
-				.combine(eliminationArray, CombinationType.HORIZONTAL)
-				.combine(rightAdaptor, CombinationType.HORIZONTAL)
-				.combine(consumers, CombinationType.HORIZONTAL);
-
-		// run the test
-		try {
-			// back off to let all other threads initialise
-			Thread.sleep(100);
-		} catch (InterruptedException e) {}
-
-		long start = System.currentTimeMillis();
-		startGate.countDown();
-		try {
-			endGate.await();
-		} catch (InterruptedException ex) {
-		}
-		long end = System.currentTimeMillis();
-		System.out.println("Elimination Array execution time: " + (end - start)
-				+ " ms");
-	}
-	
 	private static void eliminationExchangerTest(int noOfProducers, int msgsPerProducer) {
 		final CountDownLatch startGate = new CountDownLatch(1);
 		final CountDownLatch endGate = new CountDownLatch(noOfProducers * 2);
@@ -705,8 +297,8 @@ public class Main {
 		AdaptorPullWire<Integer> rightAdaptor = new AdaptorPullWire<>(
 				Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
 
-		EliminationExchanger2<Integer> eliminationExchanger = 
-				new EliminationExchanger2<>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
+		EliminationExchanger<Integer> eliminationExchanger = 
+				new EliminationExchanger<>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
 
 
 		producers.combine(leftAdaptor, CombinationType.HORIZONTAL)
@@ -775,7 +367,7 @@ public class Main {
 		// run the test
 		try {
 			// back off to let all other threads initialise
-			Thread.sleep(100);
+			Thread.sleep(500);
 		} catch (InterruptedException e) {}
 
 		long start = System.currentTimeMillis();
@@ -793,8 +385,10 @@ public class Main {
 		final CountDownLatch startGate = new CountDownLatch(1);
 		final CountDownLatch endGate = new CountDownLatch(noOfProducers * 2);
 
-		Combinator producers = initProducers(noOfProducers, msgsPerProducer, startGate, endGate);
-		Combinator consumers = initPullConsumers(noOfProducers, msgsPerProducer, startGate, endGate);
+		Combinator producers = initProducers(noOfProducers, msgsPerProducer, startGate, 
+				endGate, CombinatorOrientation.RIGHT_TO_LEFT);
+		Combinator consumers = initPullConsumers(noOfProducers, msgsPerProducer, startGate, 
+				endGate, CombinatorOrientation.RIGHT_TO_LEFT);
 
 		AdaptorPushWire<Integer> rightAdaptor = new AdaptorPushWire<>(
 				Integer.class, noOfProducers, CombinatorOrientation.RIGHT_TO_LEFT);
@@ -884,7 +478,7 @@ public class Main {
 		SendSemaphore<Integer> sendSemaphore = new SendSemaphore<>(Integer.class, 1, CombinatorOrientation.LEFT_TO_RIGHT);
 		ReceiveSemaphore<Integer> receiveSemaphore = new ReceiveSemaphore<>(Integer.class, sendSemaphore, CombinatorOrientation.RIGHT_TO_LEFT);
 		CopyWire<Integer> copyWire = new CopyWire<>(Integer.class, 2, false, CombinatorOrientation.LEFT_TO_RIGHT);
-		JoinPullWire<Integer> joinWire = new JoinPullWire<>(Integer.class, 2, false, CombinatorOrientation.LEFT_TO_RIGHT, 0);
+		JoinPullWire<Integer> joinWire = new JoinPullWire<>(Integer.class, 2, false, CombinatorOrientation.LEFT_TO_RIGHT, false);
 		TreiberStack<Integer> s1 = new TreiberStack<Integer>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
 		TreiberStack<Integer> s2 = new TreiberStack<Integer>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
 		Combinator stacks = s1.combine(s2, CombinationType.VERTICAL);
@@ -925,7 +519,7 @@ public class Main {
 		AdaptorPushWire<Integer> leftAdaptor = new AdaptorPushWire<>(Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
 		AdaptorPullWire<Integer> rightAdaptor= new AdaptorPullWire<>(Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
 		CopyWire<Integer> copyWire = new CopyWire<>(Integer.class, 2, false, CombinatorOrientation.LEFT_TO_RIGHT);
-		JoinPullWire<Integer> joinWire = new JoinPullWire<>(Integer.class, 2, false, CombinatorOrientation.LEFT_TO_RIGHT, 10);
+		JoinPullWire<Integer> joinWire = new JoinPullWire<>(Integer.class, 2, false, CombinatorOrientation.LEFT_TO_RIGHT);
 		MSQueue<Integer> q1 = new MSQueue<>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
 		MSQueue<Integer> q2 = new MSQueue<>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
 		Combinator queues = q1.combine(q2, CombinationType.VERTICAL);
@@ -1105,10 +699,17 @@ public class Main {
 	
 	private static Combinator initProducers(int noOfProducers, int msgsPerProducer, 
 			CountDownLatch startGate, CountDownLatch endGate) {
+		
+		return initProducers(noOfProducers, msgsPerProducer, startGate, 
+				endGate, CombinatorOrientation.LEFT_TO_RIGHT);
+	}
+	
+	private static Combinator initProducers(int noOfProducers, int msgsPerProducer, 
+			CountDownLatch startGate, CountDownLatch endGate, CombinatorOrientation orientation) {
 		Combinator producers = null;
 		for (int i = 0; i < noOfProducers; i++) {
 			SimpleProducer prod = new SimpleProducer(
-					msgsPerProducer, CombinatorOrientation.LEFT_TO_RIGHT);
+					msgsPerProducer, orientation);
 			if (i > 0) {
 				producers = producers.combine(prod, CombinationType.VERTICAL);
 			} else {
@@ -1122,15 +723,22 @@ public class Main {
 	
 	private static Combinator initPullConsumers(int noOfProducers, int msgsPerProducer, 
 			CountDownLatch startGate, CountDownLatch endGate) {
+		
+		return initPullConsumers(noOfProducers, msgsPerProducer, startGate, 
+				endGate, CombinatorOrientation.LEFT_TO_RIGHT);
+	}
+	
+	private static Combinator initPullConsumers(int noOfProducers, int msgsPerProducer, 
+			CountDownLatch startGate, CountDownLatch endGate, CombinatorOrientation orientation) {
 		Combinator consumers = null;
 		for (int i = 0; i < noOfProducers; i++) {
 			PullConsumer<?> cons;
 			if (i<2) {
 				cons = new PullConsumer<Number>(Number.class,
-						msgsPerProducer, CombinatorOrientation.LEFT_TO_RIGHT);
+						msgsPerProducer, orientation);
 			} else {
 				cons = new PullConsumer<Integer>(Integer.class,
-						msgsPerProducer, CombinatorOrientation.LEFT_TO_RIGHT);
+						msgsPerProducer, orientation);
 			}
 			if (i > 0) {
 				consumers = consumers.combine(cons, CombinationType.VERTICAL);

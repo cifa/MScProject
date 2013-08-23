@@ -1,4 +1,4 @@
-package uk.ac.soton.combinator.core;
+package uk.ac.soton.combinator.core.exception;
 
 public class RequestFailureException extends RuntimeException {
 

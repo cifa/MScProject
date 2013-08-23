@@ -1,5 +1,7 @@
 package uk.ac.soton.combinator.wire;
 
+import uk.ac.soton.combinator.core.Backoff;
+
 public class BackoffTest {
 
 	public static void main(String[] args) throws InterruptedException {

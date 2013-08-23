@@ -23,10 +23,13 @@ public class ReverseWire extends AbstractUntypedWire {
 
 	@Override
 	protected List<Port<?>> initLeftBoundary() {
-		List<Port<?>> ports = new ArrayList<Port<?>>();
+		List<Port<?>> ports = new ArrayList<Port<?>>(portsDefinitions.length * 2);
+		// add the top ports first 
 		for(int i=0; i<portsDefinitions.length; i++) {
-			// create 2 connected ports on one boundary
-			ports.add(i, getPort(portsDefinitions[i], Side.LEFT, portsDefinitions.length + i));
+			ports.add(getPort(portsDefinitions[i], Side.LEFT, portsDefinitions.length + i));
+		}
+		// ... and then add the complementary ones
+		for(int i=0; i<portsDefinitions.length; i++) {
 			ports.add(getComplementaryPort(portsDefinitions[i], Side.LEFT, i));
 		}
 		return ports;
