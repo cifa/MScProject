@@ -59,7 +59,7 @@ public class Philosopher extends Combinator implements Runnable {
 				System.out.println("Philosopher " + id + " is trying to get the forks");
 				try {
 					// grab the forks
-					sendRight(new Message<Integer>(Integer.class, id, callback), 0);
+					sendRight(new Message<Integer>(Integer.class, id), 0);
 					state = PhilosopherState.EATING;
 					System.out.println("Philosopher " + id + " has acquired both forks");
 				} catch (CombinatorPermanentFailureException ex) {

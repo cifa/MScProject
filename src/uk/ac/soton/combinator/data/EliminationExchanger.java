@@ -25,14 +25,17 @@ public class EliminationExchanger<T> extends Combinator {
 	private final static int TAKEN = 1;
 	private final static int WITHDRAWN = 2;
 	
-	private static final int SIZE = 32;//(Runtime.getRuntime().availableProcessors() + 1);
+	private final static int PUSH = 0;
+	private final static int POP = 1;
+	
+	private static final int SIZE = (Runtime.getRuntime().availableProcessors() + 1);
 	private static final int SPINS = (Runtime.getRuntime().availableProcessors() == 1) ? 0 : 2000;
 	private final Class<T> dataType;
 	private final AtomicReference<Node<Message<? extends T>>>[] slots;
 	
 	private final AtomicInteger max = new AtomicInteger(1);
 	
-	private final CombinatorTransientFailureException ex = 
+	private static final CombinatorTransientFailureException TRANSIENT_EXCEPTION = 
 			new CombinatorTransientFailureException("Exchange failed");
 	
 	@SuppressWarnings("unchecked")
@@ -57,9 +60,9 @@ public class EliminationExchanger<T> extends Combinator {
 			public void accept(Message<? extends T> msg)
 					throws CombinatorTransientFailureException {
 				in.incrementAndGet();
-				Node<Message<? extends T>> node = exchange(new Node<Message<? extends T>>(msg));
+				Node<Message<? extends T>> node = exchange(new Node<Message<? extends T>>(msg, PUSH));
 				if (node.getStamp() != TAKEN) {
-					throw ex;
+					throw TRANSIENT_EXCEPTION;
 				}
 				inSuc.incrementAndGet();
 			}
@@ -79,9 +82,9 @@ public class EliminationExchanger<T> extends Combinator {
 			@Override
 			public Message<? extends T> produce() throws CombinatorTransientFailureException {
 				out.incrementAndGet();
-				Node<Message<? extends T>> node = exchange(new Node<Message<? extends T>>(null));
+				Node<Message<? extends T>> node = exchange(new Node<Message<? extends T>>(null, POP));
 				if (node.getStamp() != TAKEN) {
-					throw ex;
+					throw TRANSIENT_EXCEPTION;
 				}
 				outSuc.incrementAndGet();
 				return (Message<? extends T>) node.getReference();
@@ -97,7 +100,7 @@ public class EliminationExchanger<T> extends Combinator {
 
 		while (true) {
 			if ((you = slots[index].get()) != null
-					&& ((me.value == null && you.value != null) || (me.value != null && you.value == null))
+					&& me.type != you.type
 					&& you.compareAndSet(null, me.value, OFFERED, TAKEN)) {
 				slots[index].compareAndSet(you, null);
 				LockSupport.unpark(you.waiter);
@@ -106,20 +109,17 @@ public class EliminationExchanger<T> extends Combinator {
 			} else if (you == null && slots[index].compareAndSet(null, me)) {
 				await(me, index == 0);
 				slots[index].compareAndSet(me, null);
-				if(index == 0 || me.getStamp() == TAKEN) {
-					break;
-				} else {
-					fails++;
-					me = new Node<Message<? extends T>>(me.value);
-					int m = max.get();
-					if (m > (index >>>= 1) && m > 1) {		
-						max.compareAndSet(m, m - 1);  
-					}	                    
+				int m = max.get();
+				if (m > (index >>> 1) && m > 1) {		
+					max.compareAndSet(m, m - 1);  
 				}
+				break;
 			} else if (++fails > 1) {
 				Thread.yield();
-				int m = max.get();				
-				if (fails > 3 && m < SIZE && max.compareAndSet(m, m + 1)) {
+				int m = max.get();
+				if(fails > m * 3) {
+					break;
+				} else if (fails > 2 && m < SIZE && max.compareAndSet(m, m + 1)) {
 					index = m;
 				} else if (--index < 0) {
 					index = m - 1;
@@ -151,11 +151,13 @@ public class EliminationExchanger<T> extends Combinator {
 		
 		public final V value;
 		public final Thread waiter;
+		public final int type;
 		
-		Node(V value) {
+		Node(V value, int type) {
 			super(null, OFFERED);
 			this.value = value;
 			this.waiter = Thread.currentThread();
+			this.type = type;
 		}
     }
 

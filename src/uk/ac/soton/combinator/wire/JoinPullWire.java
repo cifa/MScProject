@@ -31,7 +31,7 @@ public class JoinPullWire<T> extends Combinator {
 	private final ReentrantLock mutexOut;
 	private final AtomicReferenceArray<Message<T>> joinMessages;
 	private final AtomicInteger noOfPulledMsgs;
-	private final boolean optimisticRetry;
+	private final boolean retryOnTransientFailure;
 	private volatile boolean permanentFailure;
 	
 	public JoinPullWire(Class<T> dataType, int noOfJoinPorts, boolean fair, CombinatorOrientation orientation) {
@@ -39,7 +39,7 @@ public class JoinPullWire<T> extends Combinator {
 	}
 	
 	public JoinPullWire(Class<T> dataType, int noOfJoinPorts, boolean fair, 
-			CombinatorOrientation orientation, boolean otimisticRetry) {
+			CombinatorOrientation orientation, boolean retryOnTransientFailure) {
 		
 		super(orientation);
 		if(dataType == null) {
@@ -50,7 +50,7 @@ public class JoinPullWire<T> extends Combinator {
 		}
 		this.dataType = dataType;
 		this.noOfJoinPorts = noOfJoinPorts;
-		this.optimisticRetry = otimisticRetry;
+		this.retryOnTransientFailure = retryOnTransientFailure;
 		noOfPulledMsgs = new AtomicInteger();
 		mutexOut = new ReentrantLock(fair);
 		joinMessages = new AtomicReferenceArray<>(noOfJoinPorts);
@@ -120,7 +120,6 @@ public class JoinPullWire<T> extends Combinator {
 					
 					// STILL HERE -> did we get any msgs at all?
 					if(noOfPulledMsgs.get() == 0) {
-						// transiently ran out of retries -> fail transiently 
 						throw TRANSIENT_EXCEPTION;
 					}
 					
@@ -147,7 +146,6 @@ public class JoinPullWire<T> extends Combinator {
 		
 		private final CountDownLatch runnersComplete;
 		private final int portIndex;
-		private Backoff backoff;
 		
 		public JoinRunner(int portIndex, CountDownLatch complete) {
 			this.portIndex = portIndex;
@@ -156,6 +154,7 @@ public class JoinPullWire<T> extends Combinator {
 		
 		@Override
 		public void run() {
+			Backoff backoff = null;
 			while(!permanentFailure) {
 				try {
 					@SuppressWarnings("unchecked")
@@ -166,7 +165,7 @@ public class JoinPullWire<T> extends Combinator {
 					// success -> return
 					break;
 				} catch (CombinatorTransientFailureException ex) {
-					if(!optimisticRetry || permanentFailure) {
+					if(!retryOnTransientFailure || permanentFailure) {
 						break;
 					}
 					// back off and retry

@@ -14,8 +14,6 @@ import uk.ac.soton.combinator.core.PortDefinition;
 import uk.ac.soton.combinator.data.TreiberStack;
 import uk.ac.soton.combinator.data.EliminationExchanger;
 import uk.ac.soton.combinator.data.MSQueue;
-import uk.ac.soton.combinator.data.ReceiveSemaphore;
-import uk.ac.soton.combinator.data.SendSemaphore;
 import uk.ac.soton.combinator.deprecated.EliminationArray;
 import uk.ac.soton.combinator.deprecated.EliminationExchanger1;
 import uk.ac.soton.combinator.deprecated.EliminationExchanger3;
@@ -29,7 +27,9 @@ import uk.ac.soton.combinator.wire.ChoiceReceiveWire;
 import uk.ac.soton.combinator.wire.ChoiceSendWire;
 import uk.ac.soton.combinator.wire.JoinPushWire;
 import uk.ac.soton.combinator.wire.PermuteWire;
+import uk.ac.soton.combinator.wire.ReceiveSemaphoreWire;
 import uk.ac.soton.combinator.wire.ReverseWire;
+import uk.ac.soton.combinator.wire.SendSemaphoreWire;
 import uk.ac.soton.combinator.wire.SynchWire;
 
 public class Main {
@@ -38,12 +38,12 @@ public class Main {
 //		simpleOneToOne();
 //		simpleManyToOneWithPushAdaptor();
 //		simpleManyToOneWithPushAdaptor2();
-//		treiberStackTest(1000, 10000);
-//		treiberStackTest(1000, 10000);
-//		treiberStackTest(1000, 10000);
-//		treiberStackTest(1000, 10000);
-//		treiberStackTest(1000, 10000);
-//		treiberStackTest(1000, 10000);
+		treiberStackTest(10, 1000000);
+		treiberStackTest(10, 1000000);
+		treiberStackTest(10, 1000000);
+		treiberStackTest(10, 1000000);
+		treiberStackTest(10, 1000000);
+		treiberStackTest(10, 1000000);
 //		System.out.println("-----------------------------------------------------------------");
 //		eliminationStackWithSemaphoresAndExchangerTest(1000,10000);
 //		eliminationStackWithSemaphoresAndExchangerTest(1000,10000);
@@ -51,13 +51,13 @@ public class Main {
 //		eliminationStackWithSemaphoresAndExchangerTest(1000,10000);
 //		eliminationStackWithSemaphoresAndExchangerTest(1000,10000);
 //		eliminationStackWithSemaphoresAndExchangerTest(1000,10000);
-//		System.out.println("-----------------------------------------------------------------");
-		eliminationBackOffStackTest(1000, 10000);
-		eliminationBackOffStackTest(1000, 10000);
-		eliminationBackOffStackTest(1000, 10000);
-		eliminationBackOffStackTest(1000, 10000);
-		eliminationBackOffStackTest(1000, 10000);
-		eliminationBackOffStackTest(1000, 10000);
+		System.out.println("-----------------------------------------------------------------");
+		eliminationBackOffStackTest(10, 1000000);
+		eliminationBackOffStackTest(10, 1000000);
+		eliminationBackOffStackTest(10, 1000000);
+		eliminationBackOffStackTest(10, 1000000);
+		eliminationBackOffStackTest(10, 1000000);
+		eliminationBackOffStackTest(10, 1000000);
 //		System.out.println("-----------------------------------------------------------------");
 //		eliminationExchangerTest(1000, 10000);
 //		eliminationExchangerTest(1000, 10000);
@@ -182,9 +182,9 @@ public class Main {
 
 		TreiberStackOld<Integer> stack = new TreiberStackOld<>(Integer.class,
 				CombinatorOrientation.LEFT_TO_RIGHT);
-		SendSemaphore<Integer> leftSemaphore = new SendSemaphore<>(Integer.class, 
+		SendSemaphoreWire<Integer> leftSemaphore = new SendSemaphoreWire<>(Integer.class, 
 				8, CombinatorOrientation.LEFT_TO_RIGHT);
-		ReceiveSemaphore<Integer> rightSemaphore = new ReceiveSemaphore<>(Integer.class,
+		ReceiveSemaphoreWire<Integer> rightSemaphore = new ReceiveSemaphoreWire<>(Integer.class,
 				leftSemaphore, CombinatorOrientation.RIGHT_TO_LEFT);
 		EliminationExchanger<Integer> eliminationExchanger = 
 				new EliminationExchanger<>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);
@@ -274,15 +274,15 @@ public class Main {
 		}
 		long end = System.currentTimeMillis();
 		System.out
-				.println("Elimination Stack (with Treibor CAS or fail) execution time: "
+				.println("Elimination Stack execution time: "
 						+ (end - start) + " ms");
 		
 //		System.out.println("IN: " + eliminationArray.in.get());
 //		System.out.println("OUT: " + eliminationArray.out.get());
-		System.out.println("IN: " + eliminationExchanger.in.get());
-		System.out.println("IN Success: " + eliminationExchanger.inSuc.get());
-		System.out.println("OUT: " + eliminationExchanger.out.get());
-		System.out.println("OUT Success: " + eliminationExchanger.outSuc.get());
+//		System.out.println("IN: " + eliminationExchanger.in.get());
+//		System.out.println("IN Success: " + eliminationExchanger.inSuc.get());
+//		System.out.println("OUT: " + eliminationExchanger.out.get());
+//		System.out.println("OUT Success: " + eliminationExchanger.outSuc.get());
 	}
 	
 	private static void eliminationExchangerTest(int noOfProducers, int msgsPerProducer) {
@@ -475,8 +475,8 @@ public class Main {
 
 		AdaptorPushWire<Integer> leftAdaptor = new AdaptorPushWire<>(Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
 		AdaptorPullWire<Integer> rightAdaptor= new AdaptorPullWire<>(Integer.class, noOfProducers, CombinatorOrientation.LEFT_TO_RIGHT);
-		SendSemaphore<Integer> sendSemaphore = new SendSemaphore<>(Integer.class, 1, CombinatorOrientation.LEFT_TO_RIGHT);
-		ReceiveSemaphore<Integer> receiveSemaphore = new ReceiveSemaphore<>(Integer.class, sendSemaphore, CombinatorOrientation.RIGHT_TO_LEFT);
+		SendSemaphoreWire<Integer> sendSemaphore = new SendSemaphoreWire<>(Integer.class, 1, CombinatorOrientation.LEFT_TO_RIGHT);
+		ReceiveSemaphoreWire<Integer> receiveSemaphore = new ReceiveSemaphoreWire<>(Integer.class, sendSemaphore, CombinatorOrientation.RIGHT_TO_LEFT);
 		CopyWire<Integer> copyWire = new CopyWire<>(Integer.class, 2, false, CombinatorOrientation.LEFT_TO_RIGHT);
 		JoinPullWire<Integer> joinWire = new JoinPullWire<>(Integer.class, 2, false, CombinatorOrientation.LEFT_TO_RIGHT, false);
 		TreiberStack<Integer> s1 = new TreiberStack<Integer>(Integer.class, CombinatorOrientation.LEFT_TO_RIGHT);

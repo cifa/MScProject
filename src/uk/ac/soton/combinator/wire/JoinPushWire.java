@@ -15,6 +15,7 @@ import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.Port;
+import uk.ac.soton.combinator.core.exception.CombinatorFailureException;
 import uk.ac.soton.combinator.core.exception.CombinatorPermanentFailureException;
 import uk.ac.soton.combinator.core.exception.CombinatorTransientFailureException;
 
@@ -22,8 +23,10 @@ public class JoinPushWire<T> extends Combinator implements Runnable {
 	
 	private static final CombinatorPermanentFailureException JOIN_EXCEPTION = 
 			new CombinatorPermanentFailureException("Unable to join all messages (not equal)");
-	private static final CombinatorPermanentFailureException BARRIER_EXCEPTION = 
-			new CombinatorPermanentFailureException("Barrier Broken");
+	private static final CombinatorPermanentFailureException BARRIER_INTERRUPTION_EXCEPTION = 
+			new CombinatorPermanentFailureException("Thread interrupted while waiting");
+	private static final CombinatorTransientFailureException BARRIER_BROKEN_EXCEPTION = 
+			new CombinatorTransientFailureException("Barrier broken by another waiting thread");
 	
 //	private static int counter = 0;
 //	private final int id = ++counter;
@@ -78,33 +81,34 @@ public class JoinPushWire<T> extends Combinator implements Runnable {
 			@SuppressWarnings("unchecked")
 			@Override
 			public void accept(Message<? extends T> msg)
-					throws CombinatorPermanentFailureException{
+					throws CombinatorFailureException{
 				locks[portIndex].lock();
-//				char pos = portIndex == 0 ? 'T' : 'B';
 				try {
-//					System.out.println("Join entry to " + id + pos + ": " + msg);
 					joinMessages.set(portIndex, (Message<T>) msg);
 					barrier.await();
 					// join complete -> was it a success??
 					if(!msgJoinSuccessful) {
+						// FAILURE - invalidate all messages
+						msg.cancel(false);
 						throw JOIN_EXCEPTION;
 					}
 				} catch (InterruptedException | BrokenBarrierException e) {
 					/* This means that one of the join messages has been invalidated
 					 * and the barrier has been broken. This releases all waiting threads
-					 * including those whose messages are still valid. We need to invalidate
-					 * them here.
+					 * including those whose messages are still valid.
 					 */
-					msg.cancel(false);
-//					System.out.println("Join interrupt " + id + ": " + msg + Thread.interrupted());
-					throw BARRIER_EXCEPTION;
+					if(msg.isCancelled()) {
+						// invalid messages fail pernamently
+						Thread.interrupted();
+						throw BARRIER_INTERRUPTION_EXCEPTION;
+					} else {
+						// valid messages fail transiently
+						throw BARRIER_BROKEN_EXCEPTION;
+					}
 				} finally {
 					if(barrier.isBroken()) {
 						barrier.reset();
-//						barrier = new CyclicBarrier(noOfJoinPorts, JoinPushWire.this);
 					}
-					// clear possible interruption flag
-					Thread.interrupted();
 					locks[portIndex].unlock();
 				}
 			}
@@ -131,9 +135,9 @@ public class JoinPushWire<T> extends Combinator implements Runnable {
 			final Message<T> joinMsg = new Message<>(msgs);
 			// ... and send it on
 			CombinatorThreadPool.execute(new Runnable() {	
-				private Backoff backoff;
 				@Override
 				public void run() {
+					Backoff backoff = null;
 					while(true) {
 						try {
 							sendRight(joinMsg, 0);
@@ -156,11 +160,6 @@ public class JoinPushWire<T> extends Combinator implements Runnable {
 					}
 				}
 			});
-		} else {
-			// FAILURE - invalidate all join messages
-			for(int i=0; i<noOfJoinPorts; i++) {
-				joinMessages.get(i).cancel(false);
-			}
 		}
 	}
 

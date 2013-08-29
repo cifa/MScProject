@@ -3,6 +3,7 @@ package testing;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
@@ -11,6 +12,8 @@ import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.Port;
 
 public class SimpleConsumer extends Combinator {
+	
+	private AtomicInteger count = new AtomicInteger(0);
 	
 	public SimpleConsumer(CombinatorOrientation orientation) {
 		super(orientation);
@@ -23,7 +26,7 @@ public class SimpleConsumer extends Combinator {
 
 			@Override
 			public void accept(Message<? extends Number> msg) {
-				System.out.println(msg.get());
+				System.out.println(msg.get() + " (" + count.incrementAndGet() + ")" );
 			}
 		}));
 		return ports;

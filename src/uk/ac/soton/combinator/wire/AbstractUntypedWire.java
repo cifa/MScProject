@@ -32,10 +32,10 @@ public abstract class AbstractUntypedWire extends Combinator {
 		} else {
 			if(def.getPortDataFlow() == DataFlow.OUT) {
 				port = Port.getPassiveOutPort(def.getPortDataType(), 
-						new PermutePassiveOutPortHandler<T>(connectedPortIndex, side));
+						new IdentityPassiveOutPortHandler<T>(connectedPortIndex, side));
 			} else {
 				port = Port.getPassiveInPort(def.getPortDataType(), 
-						new PermutePassiveInPortHandler<T>(connectedPortIndex, side));
+						new IdentityPassiveInPortHandler<T>(connectedPortIndex, side));
 			}
 		}
 		return port;
@@ -49,21 +49,21 @@ public abstract class AbstractUntypedWire extends Combinator {
 		} else {
 			if(def.getPortDataFlow() == DataFlow.IN) {
 				port = Port.getPassiveOutPort(def.getPortDataType(), 
-						new PermutePassiveOutPortHandler<T>(connectedPortIndex, side));
+						new IdentityPassiveOutPortHandler<T>(connectedPortIndex, side));
 			} else {
 				port = Port.getPassiveInPort(def.getPortDataType(), 
-						new PermutePassiveInPortHandler<T>(connectedPortIndex, side));
+						new IdentityPassiveInPortHandler<T>(connectedPortIndex, side));
 			}
 		}
 		return port;
 	}
 	
-	private class PermutePassiveOutPortHandler<T> extends PassiveOutPortHandler<T> {
+	private class IdentityPassiveOutPortHandler<T> extends PassiveOutPortHandler<T> {
 		
 		private final int portIndex;
 		private final Side side;
 		
-		PermutePassiveOutPortHandler(int portIndex, Side side) {
+		IdentityPassiveOutPortHandler(int portIndex, Side side) {
 			this.portIndex = portIndex;
 			this.side = side;
 		}
@@ -79,12 +79,12 @@ public abstract class AbstractUntypedWire extends Combinator {
 		}	
 	};
 	
-	private class PermutePassiveInPortHandler<T> extends PassiveInPortHandler<T> {
+	private class IdentityPassiveInPortHandler<T> extends PassiveInPortHandler<T> {
 		
 		private final int portIndex;
 		private final Side side;
 		
-		PermutePassiveInPortHandler(int portIndex, Side side) {
+		IdentityPassiveInPortHandler(int portIndex, Side side) {
 			this.portIndex = portIndex;
 			this.side = side;
 		}

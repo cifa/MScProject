@@ -8,33 +8,33 @@ import uk.ac.soton.combinator.core.Message;
 public class NoCombTests {
 
 	public static void main(String[] args) {
-		treiberStackTest(1000, 10000);
-		treiberStackTest(1000, 10000);
-		treiberStackTest(1000, 10000);
-		treiberStackTest(1000, 10000);
-		treiberStackTest(1000, 10000);
-		treiberStackTest(1000, 10000);
+		treiberStackTest(10, 1000000);
+		treiberStackTest(10, 1000000);
+		treiberStackTest(10, 1000000);
+		treiberStackTest(10, 1000000);
+		treiberStackTest(10, 1000000);
+		treiberStackTest(10, 1000000);
 		System.out.println("-----------------------------------------------------------------");
-		treiberStackMsgTest(1000,10000);
-		treiberStackMsgTest(1000,10000);
-		treiberStackMsgTest(1000,10000);
-		treiberStackMsgTest(1000,10000);
-		treiberStackMsgTest(1000,10000);
-		treiberStackMsgTest(1000,10000);
+//		treiberStackMsgTest(1000,10000);
+//		treiberStackMsgTest(1000,10000);
+//		treiberStackMsgTest(1000,10000);
+//		treiberStackMsgTest(1000,10000);
+//		treiberStackMsgTest(1000,10000);
+//		treiberStackMsgTest(1000,10000);
+//		System.out.println("-----------------------------------------------------------------");
+		eliminationStackTest(10, 1000000);
+		eliminationStackTest(10, 1000000);
+		eliminationStackTest(10, 1000000);
+		eliminationStackTest(10, 1000000);
+		eliminationStackTest(10, 1000000);
+		eliminationStackTest(10, 1000000);
 		System.out.println("-----------------------------------------------------------------");
-		eliminationStackTest(1000, 10000);
-		eliminationStackTest(1000, 10000);
-		eliminationStackTest(1000, 10000);
-		eliminationStackTest(1000, 10000);
-		eliminationStackTest(1000, 10000);
-		eliminationStackTest(1000, 10000);
-		System.out.println("-----------------------------------------------------------------");
-		eliminationStackMsgTest(1000, 10000);
-		eliminationStackMsgTest(1000, 10000);
-		eliminationStackMsgTest(1000, 10000);
-		eliminationStackMsgTest(1000, 10000);
-		eliminationStackMsgTest(1000, 10000);
-		eliminationStackMsgTest(1000, 10000);
+//		eliminationStackMsgTest(1000, 10000);
+//		eliminationStackMsgTest(1000, 10000);
+//		eliminationStackMsgTest(1000, 10000);
+//		eliminationStackMsgTest(1000, 10000);
+//		eliminationStackMsgTest(1000, 10000);
+//		eliminationStackMsgTest(1000, 10000);
 	}
 	
 	private static void treiberStackTest(int producers, int msgs) {

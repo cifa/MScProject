@@ -16,14 +16,14 @@ public class AdaptorPullWire<T> extends Combinator {
 	
 	private final Class<T> adaptorDataType;
 	private final int noOfPullPorts;
-	private final boolean optimisticRetry;
+	private final boolean retryOnTransientFailure;
 	
 	public AdaptorPullWire(Class<T> adaptorDataType, int noOfPullPorts, CombinatorOrientation orientation) {
 		this(adaptorDataType, noOfPullPorts, orientation, true);
 	}
 	
 	public AdaptorPullWire(Class<T> adaptorDataType, int noOfPullPorts, 
-			CombinatorOrientation orientation, boolean optimisticRetry) {
+			CombinatorOrientation orientation, boolean retryOnTransientFailure) {
 		super(orientation);
 		if(adaptorDataType == null) {
 			throw new IllegalArgumentException("Adaptor Wire Data Type cannot be null");
@@ -33,7 +33,7 @@ public class AdaptorPullWire<T> extends Combinator {
 		}
 		this.adaptorDataType = adaptorDataType;
 		this.noOfPullPorts = noOfPullPorts;
-		this.optimisticRetry = optimisticRetry;
+		this.retryOnTransientFailure = retryOnTransientFailure;
 	}
 
 	@Override
@@ -55,7 +55,7 @@ public class AdaptorPullWire<T> extends Combinator {
 					try {
 						return (Message<? extends T>) receiveLeft(0);
 					} catch (CombinatorTransientFailureException ex) {
-						if(optimisticRetry) {
+						if(retryOnTransientFailure) {
 							// back off and retry
 							if(backoff == null) {
 								backoff = new Backoff();

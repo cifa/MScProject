@@ -27,14 +27,14 @@ public class CopyWire<T> extends Combinator {
 	private final Class<T> dataType;
 	private final int noOfCopyPorts;
 	private final ReentrantLock mutexIn;
-	private final boolean optimisticRetry;
+	private final boolean retryOnTransientFailure;
 	private volatile boolean permanentFailure, transientFailure;
 	
 	public CopyWire(Class<T> dataType, int noOfCopyPorts, boolean fair, CombinatorOrientation orientation) {
 		this(dataType, noOfCopyPorts, fair, orientation, true);
 	}
 	
-	public CopyWire(Class<T> dataType, int noOfCopyPorts, boolean fair, CombinatorOrientation orientation, boolean optimisticRetry) {
+	public CopyWire(Class<T> dataType, int noOfCopyPorts, boolean fair, CombinatorOrientation orientation, boolean retryOnTransientFailure) {
 		super(orientation);
 		if(dataType == null) {
 			throw new IllegalArgumentException("Copy Wire Data Type cannot be null");
@@ -44,7 +44,7 @@ public class CopyWire<T> extends Combinator {
 		}
 		this.dataType = dataType;
 		this.noOfCopyPorts = noOfCopyPorts;
-		this.optimisticRetry = optimisticRetry;
+		this.retryOnTransientFailure = retryOnTransientFailure;
 		mutexIn = new ReentrantLock(fair);
 	}
 	
@@ -86,12 +86,9 @@ public class CopyWire<T> extends Combinator {
 						throw TRANSIENT_EXCEPTION;
 					}
 				} catch (InterruptedException e) {
-					if(msg.isCancelled()) {
-						throw PERMANENT_EXCEPTION;
-					} else {
-						// this shouldn't really happen
-						throw new CombinatorTransientFailureException("Interupted when waiting for copy to complete");
-					}
+					// this shouldn't really happen
+					msg.cancel(false);
+					throw PERMANENT_EXCEPTION;
 				} finally {
 					mutexIn.unlock();
 				}
@@ -112,11 +109,9 @@ public class CopyWire<T> extends Combinator {
 	
 	private class CopyRunner implements Runnable {
 		
-		private final CountDownLatch copyStart;
-		private final CountDownLatch copyComplete;
+		private final CountDownLatch copyStart, copyComplete;
 		private final int portIndex;
 		private final Message<T> msg;
-		private Backoff backoff;
 		
 		public CopyRunner(Message<T> msg, int portIndex, 
 				CountDownLatch copyStart, CountDownLatch copyComplete) {
@@ -131,13 +126,14 @@ public class CopyWire<T> extends Combinator {
 		public void run() {
 			try {
 				copyStart.await();
+				Backoff backoff = null;
 				while(true) {
 					try {
 						sendRight(msg, portIndex);
 						// success
 						break;
 					} catch(CombinatorTransientFailureException ex) {
-						if(optimisticRetry) {
+						if(retryOnTransientFailure) {
 							// back off and retry 
 							if(backoff == null) {
 								backoff = new Backoff();

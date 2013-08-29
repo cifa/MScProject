@@ -12,7 +12,7 @@ import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.MessageEventHandler;
 import uk.ac.soton.combinator.core.Port;
-import uk.ac.soton.combinator.core.exception.CombinatorPermanentFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorFailureException;
 
 public class CallbackProducer extends Combinator implements Runnable, MessageEventHandler<Integer> {
 	private Random rand = new Random();
@@ -49,7 +49,7 @@ public class CallbackProducer extends Combinator implements Runnable, MessageEve
 //				System.out.println("Sending -> " + executor.getName() + " (" + content + ")");
 				sendRight(new Message<Integer>(Integer.class, content, this), 0);
 //				System.out.println("gone through -> " + executor.getName());
-			} catch (CombinatorPermanentFailureException ex) {
+			} catch (CombinatorFailureException ex) {
 //				System.out.println(ex.getMessage() + " -> " + executor.getName() + " " + Thread.interrupted());
 			}
 		}
