@@ -4,7 +4,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-
+/**
+ * @author Ales Cirnfus
+ *
+ * This class represents one of the boundaries of a combinator
+ * and provides methods to send and receive messages over specific
+ * ports.
+ * 
+ * Note that once initialised the boundary become immutable
+ */
 public class Boundary {
 
 	private final ArrayList<Port<?>> boundaryInterface;

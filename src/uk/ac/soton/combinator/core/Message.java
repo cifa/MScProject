@@ -11,7 +11,11 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 
-
+/**
+ * @author Ales Cirnfus
+ *
+ * @param <T> Type of the message content
+ */
 public class Message<T> implements Future<T> {
 	
 	/* Denotes the initial state of the message meaning

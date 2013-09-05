@@ -3,7 +3,16 @@ package uk.ac.soton.combinator.core;
 import uk.ac.soton.combinator.core.exception.CombinatorPermanentFailureException;
 import uk.ac.soton.combinator.core.exception.IncompatiblePortsException;
 
-
+/**
+ * @author Ales Cirnfus
+ * 
+ * This low level class represents a port for sending/receiving messages - used 
+ * in combinators' boundaries. Only the factory methods for creating valid ports 
+ * are public. Methods for connecting ports and sending/receiving messages have 
+ * default access (package-wide)
+ *
+ * @param <T> type of the message that can be sent/received through this port
+ */
 public class Port<T> {
 	
 	private final Class<T> portDataType;
@@ -12,6 +21,7 @@ public class Port<T> {
 	private final PassivePortHandler<T> handler;
 	private volatile Port<?> connectedTo;
 	
+	// Factory methods for valid ports
 	public static <T> Port<T> getActivePort(Class<T> portDataType, DataFlow portDataFlow) {
 		return new Port<T>(portDataType, portDataFlow, ControlType.ACTIVE, null);
 	}
@@ -24,6 +34,7 @@ public class Port<T> {
 		return new Port<T>(portDataType, DataFlow.OUT, ControlType.PASSIVE, handler);
 	}
 	
+	// Private constructor - no direct instantiation 
 	private Port(Class<T> portDataType, DataFlow portDataFlow, ControlType ct, PassivePortHandler<T> h) {
 		if(portDataType == null) {
 			throw new IllegalArgumentException("Port Data Type cannot be null");

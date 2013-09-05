@@ -32,7 +32,7 @@ import uk.ac.soton.combinator.wire.ReverseWire;
 import uk.ac.soton.combinator.wire.SendSemaphoreWire;
 import uk.ac.soton.combinator.wire.SynchWire;
 
-public class Main {
+public class CombinatorTests {
 	
 	public static void main(String[] args) {
 //		simpleOneToOne();

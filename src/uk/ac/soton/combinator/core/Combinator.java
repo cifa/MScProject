@@ -5,6 +5,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import uk.ac.soton.combinator.core.exception.IllegalCombinationException;
 
+/**
+ * @author Ales Cirnfus
+ *
+ * The super of all concrete combinators (wires & data). There are two abstract
+ * methods that concrete combinators must implement, {@code initLeftBoundary} 
+ * and {@code initRightBoundary}. Note that these methods are not called from 
+ * the constructor during initialisation. Rather, the boundaries are initialised 
+ * lazily when required for the composition process. This means that any instance
+ * variables of the concrete combinators can be safely used in port construction.
+ * 
+ * It also provides methods for sending/receiving messages and combinator composition 
+ */
 public abstract class Combinator {
 	
 	private final static int LEFT = 0;
