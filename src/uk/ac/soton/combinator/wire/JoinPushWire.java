@@ -7,22 +7,35 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.locks.ReentrantLock;
 
+import uk.ac.soton.combinator.core.Backoff;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
+import uk.ac.soton.combinator.core.CombinatorThreadPool;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.Port;
+import uk.ac.soton.combinator.core.exception.CombinatorFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorPermanentFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorTransientFailureException;
 
-public class JoinPushWire<T> extends Combinator {
+public class JoinPushWire<T> extends Combinator implements Runnable {
+	
+	private static final CombinatorPermanentFailureException JOIN_EXCEPTION = 
+			new CombinatorPermanentFailureException("Unable to join all messages (not equal)");
+	private static final CombinatorPermanentFailureException BARRIER_INTERRUPTION_EXCEPTION = 
+			new CombinatorPermanentFailureException("Thread interrupted while waiting");
+	private static final CombinatorTransientFailureException BARRIER_BROKEN_EXCEPTION = 
+			new CombinatorTransientFailureException("Barrier broken by another waiting thread");
+	
+//	private static int counter = 0;
+//	private final int id = ++counter;
 	
 	private final Class<T> dataType;
 	private final int noOfJoinPorts;
 	private final CyclicBarrier barrier;
 	private final ReentrantLock[] locks;
 	private final AtomicReferenceArray<Message<T>> joinMessages;
-	private final MessageFailureException ex = new MessageFailureException("Unable to join all messages (not equal)");
 	
 	private volatile boolean msgJoinSuccessful;
 	
@@ -41,30 +54,7 @@ public class JoinPushWire<T> extends Combinator {
 		for(int i=0; i<noOfJoinPorts; i++) {
 			locks[i] = new ReentrantLock(fair);
 		}
-		barrier = new CyclicBarrier(noOfJoinPorts, new Runnable() {
-			
-			@Override
-			public void run() {
-				msgJoinSuccessful = true;
-				final Message<T> msg = joinMessages.get(0);
-				for(int i=1; i<JoinPushWire.this.noOfJoinPorts; i++) {
-					if(!msg.equals(joinMessages.get(i))) {
-						msgJoinSuccessful = false;
-						break;
-					}
-				}
-				//TODO create a new merge message and send off down the right boundary on a new thread
-				// we just use the first msg for the time being
-				if(msgJoinSuccessful) {
-					THREAD_POOL.execute(new Runnable() {					
-						@Override
-						public void run() {
-							getRightBoundary().send(msg, 0);
-						}
-					});
-				}
-			}
-		});
+		barrier = new CyclicBarrier(noOfJoinPorts, this);
 	}
 
 	@Override
@@ -91,23 +81,86 @@ public class JoinPushWire<T> extends Combinator {
 			@SuppressWarnings("unchecked")
 			@Override
 			public void accept(Message<? extends T> msg)
-					throws MessageFailureException {
+					throws CombinatorFailureException{
 				locks[portIndex].lock();
 				try {
 					joinMessages.set(portIndex, (Message<T>) msg);
 					barrier.await();
 					// join complete -> was it a success??
 					if(!msgJoinSuccessful) {
-						throw ex;
+						// FAILURE - invalidate all messages
+						msg.cancel(false);
+						throw JOIN_EXCEPTION;
 					}
 				} catch (InterruptedException | BrokenBarrierException e) {
-					// this shouldn't really happen
-					new MessageFailureException("Barrier Broken");
+					/* This means that one of the join messages has been invalidated
+					 * and the barrier has been broken. This releases all waiting threads
+					 * including those whose messages are still valid.
+					 */
+					if(msg.isCancelled()) {
+						// invalid messages fail pernamently
+						Thread.interrupted();
+						throw BARRIER_INTERRUPTION_EXCEPTION;
+					} else {
+						// valid messages fail transiently
+						throw BARRIER_BROKEN_EXCEPTION;
+					}
 				} finally {
+					if(barrier.isBroken()) {
+						barrier.reset();
+					}
 					locks[portIndex].unlock();
 				}
 			}
 		});
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public void run() {
+		msgJoinSuccessful = true;
+		Message<T>[] msgs = (Message<T>[]) new Message<?>[noOfJoinPorts];
+		msgs[0] = joinMessages.get(0);
+		
+		for(int i=1; i<noOfJoinPorts; i++) {
+			msgs[i] = joinMessages.get(i);
+			if(!msgs[0].contentEquals(msgs[i])) {
+				msgJoinSuccessful = false;
+				break;
+			}
+		}
+		
+		if(msgJoinSuccessful) {
+			// we create a new join message from all received messages
+			final Message<T> joinMsg = new Message<>(msgs);
+			// ... and send it on
+			CombinatorThreadPool.execute(new Runnable() {	
+				@Override
+				public void run() {
+					Backoff backoff = null;
+					while(true) {
+						try {
+							sendRight(joinMsg, 0);
+							break;
+						} catch (CombinatorTransientFailureException ex) {
+							// back off and retry
+							if(backoff == null) {
+								backoff = new Backoff();
+							}
+							try {
+								backoff.backoff();
+							} catch (InterruptedException e) {
+								// assoc msg of joinMsg invalidated -> joinMsg now invalid as well
+								break;
+							}
+						} catch (CombinatorPermanentFailureException ex) {
+							// joinMsg failed permanently -> nothing we can do now
+							break;
+						}
+					}
+				}
+			});
+		}
 	}
 
 }

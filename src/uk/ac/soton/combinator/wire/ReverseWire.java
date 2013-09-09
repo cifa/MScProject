@@ -9,7 +9,7 @@ import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.Port;
 import uk.ac.soton.combinator.core.PortDefinition;
 
-public class ReverseWire extends UntypedWire {
+public class ReverseWire extends AbstractUntypedWire {
 	
 	private final PortDefinition<?>[] portsDefinitions;
 	
@@ -23,9 +23,13 @@ public class ReverseWire extends UntypedWire {
 
 	@Override
 	protected List<Port<?>> initLeftBoundary() {
-		List<Port<?>> ports = new ArrayList<Port<?>>();
+		List<Port<?>> ports = new ArrayList<Port<?>>(portsDefinitions.length * 2);
+		// add the top ports first 
 		for(int i=0; i<portsDefinitions.length; i++) {
-			ports.add(i, getPort(portsDefinitions[i], Side.LEFT, portsDefinitions.length + i));
+			ports.add(getPort(portsDefinitions[i], Side.LEFT, portsDefinitions.length + i));
+		}
+		// ... and then add the complementary ones
+		for(int i=0; i<portsDefinitions.length; i++) {
 			ports.add(getComplementaryPort(portsDefinitions[i], Side.LEFT, i));
 		}
 		return ports;

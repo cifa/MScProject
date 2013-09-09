@@ -7,9 +7,10 @@ import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.Port;
+import uk.ac.soton.combinator.core.exception.CombinatorPermanentFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorTransientFailureException;
 
 public class ChoiceSendWire<T> extends Combinator {
 	
@@ -33,23 +34,26 @@ public class ChoiceSendWire<T> extends Combinator {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		ports.add(Port.getPassiveInPort(dataType, new PassiveInPortHandler<T>() {
 
+			@SuppressWarnings("unchecked")
 			@Override
 			public void accept(Message<? extends T> msg)
-					throws MessageFailureException {
+					throws CombinatorPermanentFailureException {
 				int portIndex = 0;
-				//TODO do we really wanna loop forever if all choices always fail?
 				while(true) {
 					try {
+						// wrapping helps when choice combinators do something silly
+						// e.g. read the msg and then fail (transiently) 
+						if(! msg.isActive()) {
+							msg = (Message<T>) new Message<>(msg);
+						}
 						// try to send the message on the current choice port
-						getRightBoundary().send(msg, portIndex);
+						sendRight(msg, portIndex);
 						// that's gone through -> return
-//						System.out.println("Succeeded on port " + portIndex);
 						return;
-					} catch(MessageFailureException ex) {
+					} catch(CombinatorTransientFailureException ex) {
 						// no luck on this port -> move to the next choice
 						if(++portIndex == noOfChoices) {
 							portIndex = 0;
-//							System.out.println("All choices failed");
 						}
 					}
 				}

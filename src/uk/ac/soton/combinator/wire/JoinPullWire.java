@@ -7,25 +7,40 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.locks.ReentrantLock;
 
+import uk.ac.soton.combinator.core.Backoff;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
+import uk.ac.soton.combinator.core.CombinatorThreadPool;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
-import uk.ac.soton.combinator.core.RequestFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorPermanentFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorTransientFailureException;
 
 public class JoinPullWire<T> extends Combinator {
+	
+	private static final CombinatorPermanentFailureException PERMANENT_EXCEPTION = 
+			new CombinatorPermanentFailureException("Unable to join all messages (not equal)");
+
+	private static final CombinatorTransientFailureException TRANSIENT_EXCEPTION = 
+			new CombinatorTransientFailureException("No messages currently available");
 	
 	private final Class<T> dataType;
 	private final int noOfJoinPorts;
 	private final ReentrantLock mutexOut;
 	private final AtomicReferenceArray<Message<T>> joinMessages;
-	private final int retries = 5;
-	private final long backOffPeriod = 10;
-	private AtomicInteger noOfMsgToFetch = new AtomicInteger();
+	private final AtomicInteger noOfPulledMsgs;
+	private final boolean retryOnTransientFailure;
+	private volatile boolean permanentFailure;
 	
 	public JoinPullWire(Class<T> dataType, int noOfJoinPorts, boolean fair, CombinatorOrientation orientation) {
+		this(dataType, noOfJoinPorts, fair, orientation, true);
+	}
+	
+	public JoinPullWire(Class<T> dataType, int noOfJoinPorts, boolean fair, 
+			CombinatorOrientation orientation, boolean retryOnTransientFailure) {
+		
 		super(orientation);
 		if(dataType == null) {
 			throw new IllegalArgumentException("Join Wire Data Type cannot be null");
@@ -35,6 +50,8 @@ public class JoinPullWire<T> extends Combinator {
 		}
 		this.dataType = dataType;
 		this.noOfJoinPorts = noOfJoinPorts;
+		this.retryOnTransientFailure = retryOnTransientFailure;
+		noOfPulledMsgs = new AtomicInteger();
 		mutexOut = new ReentrantLock(fair);
 		joinMessages = new AtomicReferenceArray<>(noOfJoinPorts);
 	}
@@ -54,60 +71,69 @@ public class JoinPullWire<T> extends Combinator {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		ports.add(Port.getPassiveOutPort(dataType, new PassiveOutPortHandler<T>() {
 			
-			private final RequestFailureException ex = new RequestFailureException("Unable to join all messages (not equal)");
-
 			@Override
-			public Message<T> produce() throws RequestFailureException {
+			public Message<? extends T> produce() throws CombinatorPermanentFailureException {
 				mutexOut.lock();
 				try {
-//					Thread.sleep(100);
-					int retriesLeft = retries;
-					// start fetching on all parts
-					noOfMsgToFetch.set(noOfJoinPorts);
-					while(retries < 0 || retriesLeft >= 0) {
-						// how many runners do we need?
-						CountDownLatch runnersComplete = new CountDownLatch(noOfMsgToFetch.get());
-						// start join runners on ports that haven't fetched a message yet
-						for(int i=0; i<noOfJoinPorts; i++) {
-							if(joinMessages.get(i) == null) {
-								THREAD_POOL.execute(new JoinRunner(i, runnersComplete));
-							}
-						}
-						// wait for all runners to complete
-						runnersComplete.await();
-						if(noOfMsgToFetch.get() == 0) {
-							// we have all messages -> are they the same?
-							Message<T> msg = joinMessages.get(0);
-							for(int i=1; i<noOfJoinPorts; i++) {
-//								System.out.println("Pulled " + msg.getContent() + " and " + joinMessages.get(i).getContent());
-								if(!msg.equals(joinMessages.get(i))) {
-									throw ex;
-								}
-							}
-							// all fine -> return a join message
-							//TODO we need to do something failure related here -> new message??
-							return msg;
-						} else if(noOfMsgToFetch.get() == noOfJoinPorts) {
-							// no messages AT ALL -> fail without backoff 
-							throw new RequestFailureException("Unable to fetch any messages at all");
-						} else {
-							// some msgs not fetched -> let's back off and retry
-							if(retries < 0 || --retriesLeft >= 0) {
-								// don't sleep if there is no retry left
-								Thread.sleep(backOffPeriod);
-							}	
-						}
-					}
-					// can only happen with a limited number of retries (or none)
-					throw new RequestFailureException("Unable to fetch messages from all join ports");
-				} catch (InterruptedException e) {
-					// this shouldn't really happen
-					throw new RequestFailureException("Interupted when waiting for join ports to fetch messages");
-				} finally {
-					// reset the wire for next join operation
+					// make sure the flags are reset
+					permanentFailure = false;
+					noOfPulledMsgs.set(0);
+					// how many runners do we need?
+					CountDownLatch runnersComplete = new CountDownLatch(noOfJoinPorts);
 					for(int i=0; i<noOfJoinPorts; i++) {
-						joinMessages.set(i, null);
+						CombinatorThreadPool.execute(new JoinRunner(i, runnersComplete));
 					}
+					// wait for all runners to complete
+					try {
+						runnersComplete.await();
+					} catch (InterruptedException e) {
+						permanentFailure = true;
+					}
+					// all good?
+					if(!permanentFailure && noOfPulledMsgs.get() == noOfJoinPorts) {
+						@SuppressWarnings("unchecked")
+						Message<T>[] msgs = (Message<T>[]) new Message<?>[noOfJoinPorts];
+						msgs[0] = joinMessages.get(0); 
+						// we have all messages -> are they contents the same?	
+						/* TODO What if we didn't check for equality?? We would 
+						 * have a join message with (potentially) unequal contents
+						 * but the consumer could eventually decide if that's ok.
+						 * (This wouldn't work with the current implementation of
+						 * failure handling where fully acknowledged msg removes
+						 * all associations with encapsulated/wrapper messages)
+						 */
+						for(int i=1; i<noOfJoinPorts; i++) {
+							if(joinMessages.get(0).contentEquals(joinMessages.get(i))) {
+								msgs[i] = joinMessages.get(i);
+							} else {
+								// FAILURE -> unequal messages
+								permanentFailure = true;
+								break;
+							}
+						}
+						
+						if(!permanentFailure) {
+							// all messages are equal -> return join message
+							return new Message<T>(msgs);
+						}
+					}
+					
+					// STILL HERE -> did we get any msgs at all?
+					if(noOfPulledMsgs.get() == 0) {
+						throw TRANSIENT_EXCEPTION;
+					}
+					
+					// there must have been a permanent failure
+					// invalidate any fetched msgs and clear up
+					for(int i=0; i<noOfJoinPorts; i++) {
+						Message<T> msg = joinMessages.getAndSet(i, null);
+						if(msg != null) {
+							msg.cancel(false);
+						}
+					}
+					// throw permanent failure exception
+					throw PERMANENT_EXCEPTION;
+				} finally {
 					// ... and let go
 					mutexOut.unlock();
 				}
@@ -128,19 +154,36 @@ public class JoinPullWire<T> extends Combinator {
 		
 		@Override
 		public void run() {
-			try {
-				@SuppressWarnings("unchecked")
-				Message<T> msg = (Message<T>) getLeftBoundary().receive(portIndex);
-				// set msg for this port
-				joinMessages.set(portIndex, msg);
-				// and (atomically) mark its success
-				noOfMsgToFetch.decrementAndGet();
-			} catch(RequestFailureException ex) {
-				// no msg will trigger a retry (if applicable)
-//				System.out.println(ex.getMessage());
-			} finally {
-				runnersComplete.countDown();
+			Backoff backoff = null;
+			while(!permanentFailure) {
+				try {
+					@SuppressWarnings("unchecked")
+					Message<T> msg = (Message<T>) receiveLeft(portIndex);
+					// set msg for this port
+					joinMessages.set(portIndex, msg);
+					noOfPulledMsgs.incrementAndGet();
+					// success -> return
+					break;
+				} catch (CombinatorTransientFailureException ex) {
+					if(!retryOnTransientFailure || permanentFailure) {
+						break;
+					}
+					// back off and retry
+					if(backoff == null) {
+						backoff = new Backoff();
+					}
+					try {
+						backoff.backoff();
+					} catch (InterruptedException e) {
+						// shouldn't happen -> just clear the interrupt flag
+						Thread.interrupted();
+					}
+				} catch (CombinatorPermanentFailureException ex) {
+					permanentFailure = true;
+				}				
 			}
+			// runner done
+			runnersComplete.countDown();
 		}
 	}
 }

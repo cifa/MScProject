@@ -10,7 +10,11 @@ public class Eliminator<T> {
 	private final static int OFFERED = 0;
 	private final static int TAKEN = 1;
 	private final static int WITHDRAWN = 2;
-	private final static int SIZE = 32;
+	
+	private final static int PUSH = 0;
+	private final static int POP = 1;
+	
+	private final static int SIZE = (Runtime.getRuntime().availableProcessors() + 1); //32;
 	private final static int SPINS = (Runtime.getRuntime().availableProcessors() == 1) ? 0 : 2000;
 	
 	private final AtomicReference<Node<T>>[] slots;
@@ -25,12 +29,12 @@ public class Eliminator<T> {
 	}
 	
 	public boolean offer(T value) {	
-		return exchange(new Node<T>(value)).getStamp() == TAKEN;
+		return exchange(new Node<T>(value, PUSH)).getStamp() == TAKEN;
 	}
 	
 	@SuppressWarnings("unchecked")
 	public T get() {
-		return (T) exchange(new Node<T>(null)).getReference();
+		return (T) exchange(new Node<T>(null, POP)).getReference();
 	}
 	
 	private Node<T> exchange(Node<T> me) {
@@ -40,7 +44,7 @@ public class Eliminator<T> {
 
 		while (true) {
 			if ((you = slots[index].get()) != null
-					&& ((me.value == null && you.value != null) || (me.value != null && you.value == null))
+					&& me.type != you.type
 					&& you.compareAndSet(null, me.value, OFFERED, TAKEN)) {
 				slots[index].compareAndSet(you, null);
 				LockSupport.unpark(you.waiter);
@@ -49,20 +53,17 @@ public class Eliminator<T> {
 			} else if (you == null && slots[index].compareAndSet(null, me)) {
 				await(me, index == 0);
 				slots[index].compareAndSet(me, null);
-				if(index == 0 || me.getStamp() == TAKEN) {
-					break;
-				} else {
-					fails++;
-					me = new Node<T>(me.value);
-					int m = max.get();
-					if (m > (index >>>= 1) && m > 1) {		
-						max.compareAndSet(m, m - 1);  
-					}	                    
+				int m = max.get();
+				if (m > (index >>>= 1) && m > 1) {		
+					max.compareAndSet(m, m - 1);  
 				}
+				break;
 			} else if (++fails > 1) {
 				Thread.yield();
-				int m = max.get();				
-				if (fails > 3 && m < SIZE && max.compareAndSet(m, m + 1)) {
+				int m = max.get();
+				if(fails > m * 3) {
+					break;
+				} else if (fails > 3 && m < SIZE && max.compareAndSet(m, m + 1)) {
 					index = m;
 				} else if (--index < 0) {
 					index = m - 1;
@@ -94,11 +95,13 @@ public class Eliminator<T> {
 		
 		public final T value;
 		public final Thread waiter;
+		public final int type;
 		
-		Node(T value) {
+		Node(T value, int type) {
 			super(null, OFFERED);
 			this.value = value;
 			this.waiter = Thread.currentThread();
+			this.type = type;
 		}
     }
 }

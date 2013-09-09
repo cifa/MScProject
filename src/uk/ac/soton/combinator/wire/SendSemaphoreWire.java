@@ -1,4 +1,4 @@
-package uk.ac.soton.combinator.data;
+package uk.ac.soton.combinator.wire;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -7,17 +7,18 @@ import java.util.concurrent.Semaphore;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.Port;
+import uk.ac.soton.combinator.core.exception.CombinatorFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorTransientFailureException;
 
-public class SendSemaphore<T> extends AbstractSemaphore<T> {
+public class SendSemaphoreWire<T> extends AbstractSemaphoreWire<T> {
 
-	public SendSemaphore(Class<T> dataType, int permits, CombinatorOrientation orientation) {
+	public SendSemaphoreWire(Class<T> dataType, int permits, CombinatorOrientation orientation) {
 		super(dataType, new Semaphore(permits), orientation);
 	}
 	
-	public SendSemaphore(Class<T> dataType, AbstractSemaphore<T> linkedSemaphore, 
+	public SendSemaphoreWire(Class<T> dataType, AbstractSemaphoreWire<T> linkedSemaphore, 
 			CombinatorOrientation orientation) {
 		super(dataType, linkedSemaphore.semaphore, orientation);
 	}
@@ -27,14 +28,14 @@ public class SendSemaphore<T> extends AbstractSemaphore<T> {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		ports.add(Port.getPassiveInPort(dataType, new PassiveInPortHandler<T>() {
 			
-			private final MessageFailureException ex = 
-					new MessageFailureException("No Semaphore permission available");
+			private final CombinatorTransientFailureException ex = 
+					new CombinatorTransientFailureException("No Semaphore permission available");
 
 			@Override
-			public void accept(Message<? extends T> msg) {
+			public void accept(Message<? extends T> msg) throws CombinatorFailureException {
 				if(semaphore.tryAcquire()) {
 					try {
-						getRightBoundary().send(msg, 0);
+						sendRight(msg, 0);
 					} finally {
 						semaphore.release();
 					}

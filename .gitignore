@@ -1,8 +1,14 @@
 *.class
 *.classpath
 *.project
+*.cld
 
 # Package Files #
 *.jar
 *.war
 *.ear
+
+# Directories #
+bin/
+target/
+.settings/

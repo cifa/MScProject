@@ -1,30 +1,393 @@
 package uk.ac.soton.combinator.core;
 
-public class Message<T> {
+import java.lang.reflect.Array;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 
+/**
+ * @author Ales Cirnfus
+ *
+ * @param <T> Type of the message content
+ */
+public class Message<T> implements Future<T> {
+	
+	/* Denotes the initial state of the message meaning
+	 * that is has not been either fully acknowledged or 
+	 * cancelled (invalidated)
+	 */
+	private static final int ACTIVE = 0;
+	
+	// Indicates that the message has been invalidated (cancelled)
+	private static final int CANCELLED = 1;
+	
+	/* Indicates that this message and all other related messages have been
+	 * acknowledged and the message content can be safely retrieved
+	 */
+	private static final int FULLY_ACKNOWLEDGED = 2;
+	
+	// hold the current state of the message (one of the 3 above)
+	private final AtomicInteger messageState;
+	
 	private final Class<T> messageDataType;
 	private final T content;
+	
+	/* Invoked at most once when the message is invalidated (cancelled)
+	 * This callback is optional (producers don't have to provide one)
+	 */
+	private final MessageEventHandler<T> messageCallback;
+	
+	/* Messages are type verified when they are sent through a port 
+	 * for the first time (type-safe combinations of ports ensure type
+	 * safety from there onwards)
+	 */
 	private volatile boolean typeVerified;
+	
+	/* Indicates that this message has reached its intended recipient 
+	 * that has either tried to obtain the content through one of the
+	 * get() methods or validated the message content using a MessageValidator
+	 * and the static validateMessageContent(...) method. However, this
+	 * doesn't mean that the content can be retrieved as the message might 
+	 * need to wait for other related messages to be also acknowledged
+	 */
+	private volatile boolean acknowledged;
+	
+	/* Denotes the thread that is currently executing the full acknowledgement
+	 * check on this message. If this message is a (top level) wrapper message 
+	 * then the isWrapperAck() method will be also invoked as part of the full
+	 * acknowledgement check. In such a case it would not be beneficial to unpark
+	 * other threads waiting in the get() methods as it requires an intervention 
+	 * of a full acknowledgement check invoked in another (related) message to 
+	 * alter the state of this message.
+	 */
+	private volatile Thread fullAcknowledgementRunner;
+	
+	// This message is wrapped around these messages
+	private volatile Message<T>[] encapsulatedMsgs;
+	
+	// List of messages (wrappers) that are wrapped around this messages
+	private volatile Set<Message<T>> wrapperMsgs;	
+	
+	/* Queue of threads trying to retrieve the message content through
+	 * one of the get() methods when the message is not fully acknowledged
+	 * yet.
+	 */
+	private volatile ConcurrentLinkedQueue<Thread> waiters;
+	
+	private volatile Thread currentCarrier;
+	
+	
+	//******** CONSTRUCTORS **************
 
 	public Message(Class<T> messageDataType, T content) {
+		this(messageDataType, content, null);
+	}
+	
+	public Message(Class<T> messageDataType, T content, MessageEventHandler<T> messageCallback) {
 		if(messageDataType == null) {
 			throw new IllegalArgumentException("Message Data Type cannot be null");
 		}
 		this.messageDataType = messageDataType;
 		this.content = content;
-		setTypeVerified(false);
+		this.messageCallback = messageCallback;
+		this.messageState = new AtomicInteger(ACTIVE);
+//		this.waiters = new ConcurrentLinkedQueue<>();
 	}
+	
+	/**
+	 * Constructor used by copy and join wires to wrap other messages
+	 * @param msgs  arbitrary number of messages to wrap (at least one) 
+	 */
+	//TODO maybe, this shouldn't be public?? (would require package refactoring)
+	@SafeVarargs
+	public Message(Message<T>... msgs) {
+		// TODO copying the content of the first msg will only work for immutable objects
+		this(msgs[0].messageDataType, msgs[0].content);
+		encapsulatedMsgs = msgs;
+		// Message wrapper is type safe
+		setTypeVerified(true);
+		// assoc the encapsulated msgs with this wrapper
+		boolean valid = true;
+		for(Message<T> msg : msgs) {
+			msg.addOuterWrapperMessage(this);
+			// has any of the encapsulated msgs just been cancelled?
+			valid = valid && !msg.isCancelled();
+			// encapsulated msgs must be active
+			msg.messageState.set(ACTIVE);
+			// only top level msgs are carried
+			msg.currentCarrier = null;
+			
+		}
+		// cannot build a valid msg from invalidated ones
+		if(! valid) {
+			cancel(false);
+		}
+	}
+	
+	//********** METHODS ***************
 
+	@Override
+	public T get() throws CancellationException {
+		// an attempt to access the content is considered as acknowledgement that the 
+		// message has been received by its consumer
+		acknowledged = true;
+		
+		// msgs must be fully acknowledged before we can return the value
+		while(messageState.get() != FULLY_ACKNOWLEDGED) {
+			// throw exception if message invalidated (cancelled)
+			if(isCancelled()) {
+				throw new CancellationException("Cannot access the " +
+						"content of an invalidated message");
+			}
+			
+			if(messageState.get() == FULLY_ACKNOWLEDGED) {
+				// fully acknowledged by another thread -> return content
+				break;
+			} else {
+				// check if fully acknowledged now 
+				if(fullAcknowledgementCheck()) {
+					// fully acknowledged -> return content
+					break;
+				}
+			}
+			
+			if(messageState.get() == ACTIVE) {
+				// init waiters queue if not done yet
+				if(waiters == null) {
+					synchronized (this) {
+						if(waiters == null) {
+							waiters = new ConcurrentLinkedQueue<>();
+						}
+					}
+				}
+				// add current thread as a potential waiter
+				waiters.add(Thread.currentThread());
+				
+				/*
+				 *  we need to re-run the full acknowledge check after adding
+				 *  the current thread as a waiter to avoid missed unparks
+				 *  TODO is the re-run better than initialising the waiters queue
+				 *       in the constructor and adding the tread before the first
+				 *       runFullAcknowledgementCheck() call?
+				 */
+				fullAcknowledgementCheck();
+				
+				/*
+				 * We need to wait if message state is still active.
+				 * If it's not we can continue and determine the right response
+				 * in the next iteration of the while loop. But before that the 
+				 * current thread needs to be removed from the waiters queue - 
+				 * failure of this call means that another thread executed unparkWaiters
+				 * after the current thread was added to the waiters queue.
+				 * This means that the next call to park() is guaranteed not to
+				 * block - get rid of it
+				 */
+				if(messageState.get() == ACTIVE || !waiters.remove(Thread.currentThread())) {
+					// wait for changes (either invalidation or full acknowledgement)
+					LockSupport.park(this);
+				}			
+			}
+		}
+		// we are fully acknowledged and can return the value
+		return content;
+	}
+	
+
+	@Override
+	public T get(long timeout, TimeUnit unit) throws CancellationException, TimeoutException {
+		// an attempt to access the content is considered as acknowledgement that the 
+		// message has been received by its consumer
+		acknowledged = true;
+		
+		if(messageState.get() != FULLY_ACKNOWLEDGED) {
+			if(isCancelled()) {
+				throw new CancellationException("Cannot access the " +
+						"content of an invalidated message");
+			}
+			
+			if(fullAcknowledgementCheck()) {
+				// fully acknowledged -> return content
+				return content;
+			}
+			
+			// we need to wait
+			// init waiters queue if not done yet
+			if(waiters == null) {
+				synchronized (this) {
+					if(waiters == null) {
+						waiters = new ConcurrentLinkedQueue<>();
+					}
+				}
+			}
+			waiters.add(Thread.currentThread());
+			LockSupport.parkNanos(this, unit.toNanos(timeout));
+			
+			// re-check if still valid
+			if(isCancelled()) {
+				throw new CancellationException("Cannot access the " +
+						"content of an invalidated message");
+			}
+			// timeout if still not acknowledged
+			if(messageState.get() != FULLY_ACKNOWLEDGED) {
+				throw new TimeoutException("Message not fully acknowledged yet");
+			}
+		}
+		// fully acknowledged -> return content
+		return content;
+	}
+	
+	/**
+	 * Cancels (invalidates) the message
+	 * 
+	 * @param mayInterruptIfRunning	 no relevance - disregarded 
+	 * @return	true if the message is cancelled (invalidated), false otherwise
+	 * 			(e.g. message already cancelled - invalidated)
+	 */
+	@Override
+	public boolean cancel(boolean mayInterruptIfRunning) {
+		// Message cannot be cancelled (invalidated) if the content
+		// of the message has already been fully acknowledged.
+		// Also, we want to invalidate each message only once
+		boolean invalidate = messageState.compareAndSet(ACTIVE, CANCELLED);
+
+		if(invalidate) {
+			// notify related msgs using local vars
+			Message<T>[] encaps = encapsulatedMsgs;
+			Set<Message<T>> wrappers = wrapperMsgs;
+			
+			// we've reached a final immutable state -> no longer
+			// dependant on any encapsulated/wrapper messages
+			encapsulatedMsgs = null;
+			wrapperMsgs = null;
+			
+			if(currentCarrier != null) {
+				try {
+					// multi-thread interleavings can cause NullPointerException
+					currentCarrier.interrupt();
+					currentCarrier = null;
+				} catch (NullPointerException ex) {}			
+			}
+			
+			/* Unpark any threads waiting to get the content - they will
+			 * throw a CancellationException as the message is now invalid (cancelled)
+			 */
+			unparkWaiters();
+			
+			// invalidate all encapsulated messages
+			if(encaps != null) {
+				for(Message<T> msg : encaps) {
+					msg.cancel(mayInterruptIfRunning);
+				}
+			}
+			// invoke invalidation callback on this message (if any)
+			if(messageCallback != null) {
+				// execute the callback as a separate task
+				CombinatorThreadPool.execute(new Runnable() {
+					
+					@Override
+					public void run() {
+						messageCallback.messageInvalidated(Message.this, content);
+					}
+				});
+				
+			}
+			// invalidate all wrappers
+			if(wrappers != null) {
+				for(Message<T> msg : wrappers) {
+					msg.cancel(mayInterruptIfRunning);
+				}
+			}
+		}
+		return invalidate;
+	}
+	
+	@Override
+	public boolean isCancelled() {
+		return messageState.get() == CANCELLED;
+	}
+	
+	@Override
+	public boolean isDone() {
+		if(messageState.get() == ACTIVE) {
+			// can it be fully acknowledged now?
+			fullAcknowledgementCheck();
+		}
+		return messageState.get() != ACTIVE;
+	}
+	
+	public boolean isActive() {
+		return messageState.get() == ACTIVE;
+	}
+	
 	public Class<T> getMessageDataType() {
 		return messageDataType;
 	}
-
-	public T getContent() {
-		return content;
+	
+	public boolean contentEquals(Message<? extends T> joinMessages) {
+		if(joinMessages != null) {
+			if(content == null) {
+				return joinMessages.content == null;
+			} else {
+				return content.equals(joinMessages.content);
+			}
+		}
+		return false;
 	}
-
-	boolean isTypeVerified() {
-		return typeVerified;
+	
+	@Override
+	public String toString() {
+		return content + " " + currentCarrier + " ";
+	}
+	
+	/* TODO we cannot stop the validator from exposing the message content(s)
+	 * to the outside world once it gets its hands on it ... any solution?
+	 */
+	@SafeVarargs
+	@SuppressWarnings("unchecked")
+	public static <T> boolean validateMessageContent(final MessageValidator<T> validator, 
+			final Message<? extends T>... msgs) {
+		if(validator == null || msgs == null) {
+			throw new IllegalArgumentException("MessageValidator and/or Messages to validate cannot be null");
+		}
+		// put content of all msgs into array
+		T[] contents = (T[]) Array.newInstance(msgs[0].getMessageDataType(), msgs.length);
+		for(int i=0; i<msgs.length; i++) {
+			contents[i] = msgs[i].content;
+		}
+		// run validator
+		boolean valid = validator.validate(contents);
+		// either acknowledge or invalidate all msgs 
+		// (these are guaranteed to be top level wrappers or root messages)
+		for(Message<?> msg : msgs) {
+			if(valid) {
+				msg.acknowledged = true;
+			} else {
+				msg.cancel(false);
+			}
+		}
+		return valid;
+	}
+	
+	boolean addOuterWrapperMessage(Message<T> wrapperMsg) {
+		// initialize the wrapper set only when it's really needed
+		if(wrapperMsgs == null) {
+			synchronized (this) {
+				if(wrapperMsgs == null) {
+					wrapperMsgs = new HashSet<>();
+				}
+			}
+		}
+		try {
+			return wrapperMsgs.add(wrapperMsg);	
+		} catch(NullPointerException ex) {
+			return false;
+		}	
 	}
 
 	/*
@@ -36,15 +399,105 @@ public class Message<T> {
 		this.typeVerified = typeVerified;
 	}
 	
-	@Override
-	public boolean equals(Object other) {
-		if(other instanceof Message) {
-			if(content == null) {
-				return ((Message<?>) other).content == null;
-			} else {
-				return content.equals(((Message<?>) other).content);
+	boolean isTypeVerified() {
+		return typeVerified;
+	}
+	
+	void setCurrentCarrier(Thread t) {
+		currentCarrier = t;
+	}
+	
+	private synchronized boolean fullAcknowledgementCheck() {
+		fullAcknowledgementRunner = Thread.currentThread();
+		boolean ack = isMessageFullyAcknowledged();
+		fullAcknowledgementRunner = null;
+		return ack;
+	}
+	
+	private boolean isMessageFullyAcknowledged() {
+		// must be true for simple unwrapped msgs
+		boolean ack = true;
+
+		if(messageState.get() == ACTIVE) {
+			/* We do these checks with local pointer as the
+			 * instance variables can be reset during execution 
+			 * resulting in a NullPointerException
+			 * (performing these checks after a reset has no side
+			 * effects - they are useless - performance??)
+			 */
+			Message<T>[] encaps = encapsulatedMsgs;
+			Set<Message<T>> wrappers = wrapperMsgs;
+			if(encaps != null) {
+				for(Message<T> msg : encaps) {
+					ack = msg.isMessageFullyAcknowledged();
+					// if any encaps msg not acknowledged then this one isn't either
+					if(! ack) break;
+				}
+			} else if(wrappers != null) {
+				// a bottom-of-the-hierarchy msg that has been wrapped -> are all wrappers acknowledged?
+				for(Message<T> msg : wrappers) {
+					ack = msg.isWrapperAck();
+					// if any wrapper not acknowledged neither is this message
+					if(! ack) break;
+				}
 			}
 		}
-		return false;
+		
+		if(ack) {
+			// try to set the state to FULLY_ACKNOWLEDGED 
+			// (not guaranteed to succeed as another thread might have already done it)
+			if(messageState.compareAndSet(ACTIVE, FULLY_ACKNOWLEDGED)) {
+				// we've reached a final immutable state -> no longer
+				// dependant on any encapsulated/wrapper messages
+				encapsulatedMsgs = null;
+				wrapperMsgs = null;
+				
+				currentCarrier = null;
+				
+				// invoke full acknowledgement callback on this message (if any)
+				if(messageCallback != null) {
+					// execute the callback as a separate task
+					CombinatorThreadPool.execute(new Runnable() {
+						
+						@Override
+						public void run() {
+							messageCallback.messageFullyAcknowledged(Message.this);
+						}
+					});	
+				}
+			}
+		}
+		return messageState.get() == FULLY_ACKNOWLEDGED;
+	}
+	
+	private boolean isWrapperAck() {
+		Set<Message<T>> wrappers = wrapperMsgs;
+		// top level wrapper returns its acknowledge value 
+		if(wrappers == null) {
+			if(! Thread.currentThread().equals(fullAcknowledgementRunner)) {
+				unparkWaiters();
+			}
+			return acknowledged;
+		}
+		// otherwise we go up the hierarchy
+		boolean ack = true;
+		for(Message<T> msg : wrappers) {
+			if(! msg.isWrapperAck()) {
+				ack = false;
+				break;
+			}
+		}
+		// if all my wrappers are acknowledged so am I 
+		acknowledged = ack;
+		return ack;
+	}
+	
+	private void unparkWaiters() {
+		if(waiters != null) {
+			Thread t;
+			while((t = waiters.poll()) != null) {
+				LockSupport.unpark(t);
+			}
+		}
 	}
 }

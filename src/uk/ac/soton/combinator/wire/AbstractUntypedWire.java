@@ -5,24 +5,23 @@ import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.ControlType;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
 import uk.ac.soton.combinator.core.PortDefinition;
-import uk.ac.soton.combinator.core.RequestFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorFailureException;
 
-public abstract class UntypedWire extends Combinator {
+public abstract class AbstractUntypedWire extends Combinator {
 	
 	protected enum Side {
 		LEFT, RIGHT
 	}
 
-	public UntypedWire() {
+	public AbstractUntypedWire() {
 		super();
 	}
 	
-	public UntypedWire(CombinatorOrientation orientation) {
+	public AbstractUntypedWire(CombinatorOrientation orientation) {
 		super(orientation);
 	}
 	
@@ -33,10 +32,10 @@ public abstract class UntypedWire extends Combinator {
 		} else {
 			if(def.getPortDataFlow() == DataFlow.OUT) {
 				port = Port.getPassiveOutPort(def.getPortDataType(), 
-						new PermutePassiveOutPortHandler<T>(connectedPortIndex, side));
+						new IdentityPassiveOutPortHandler<T>(connectedPortIndex, side));
 			} else {
 				port = Port.getPassiveInPort(def.getPortDataType(), 
-						new PermutePassiveInPortHandler<T>(connectedPortIndex, side));
+						new IdentityPassiveInPortHandler<T>(connectedPortIndex, side));
 			}
 		}
 		return port;
@@ -50,53 +49,53 @@ public abstract class UntypedWire extends Combinator {
 		} else {
 			if(def.getPortDataFlow() == DataFlow.IN) {
 				port = Port.getPassiveOutPort(def.getPortDataType(), 
-						new PermutePassiveOutPortHandler<T>(connectedPortIndex, side));
+						new IdentityPassiveOutPortHandler<T>(connectedPortIndex, side));
 			} else {
 				port = Port.getPassiveInPort(def.getPortDataType(), 
-						new PermutePassiveInPortHandler<T>(connectedPortIndex, side));
+						new IdentityPassiveInPortHandler<T>(connectedPortIndex, side));
 			}
 		}
 		return port;
 	}
 	
-	private class PermutePassiveOutPortHandler<T> extends PassiveOutPortHandler<T> {
+	private class IdentityPassiveOutPortHandler<T> extends PassiveOutPortHandler<T> {
 		
 		private final int portIndex;
 		private final Side side;
 		
-		PermutePassiveOutPortHandler(int portIndex, Side side) {
+		IdentityPassiveOutPortHandler(int portIndex, Side side) {
 			this.portIndex = portIndex;
 			this.side = side;
 		}
 
 		@SuppressWarnings("unchecked")
 		@Override
-		public Message<T> produce() throws RequestFailureException {
+		public Message<? extends T> produce() throws CombinatorFailureException  {
 			if(side == Side.LEFT) {
-				return (Message<T>) getLeftBoundary().receive(portIndex);
+				return (Message<? extends T>) receiveLeft(portIndex);
 			} else {
-				return (Message<T>) getRightBoundary().receive(portIndex);
+				return (Message<? extends T>) receiveRight(portIndex);
 			}
 		}	
 	};
 	
-	private class PermutePassiveInPortHandler<T> extends PassiveInPortHandler<T> {
+	private class IdentityPassiveInPortHandler<T> extends PassiveInPortHandler<T> {
 		
 		private final int portIndex;
 		private final Side side;
 		
-		PermutePassiveInPortHandler(int portIndex, Side side) {
+		IdentityPassiveInPortHandler(int portIndex, Side side) {
 			this.portIndex = portIndex;
 			this.side = side;
 		}
 		
 		@Override
 		public void accept(Message<? extends T> msg)
-				throws MessageFailureException {
+				throws CombinatorFailureException {
 			if(side == Side.LEFT) {
-				getLeftBoundary().send(msg, portIndex);
+				sendLeft(msg, portIndex);
 			} else {
-				getRightBoundary().send(msg, portIndex);
+				sendRight(msg, portIndex);
 			}
 		}
 	};

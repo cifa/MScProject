@@ -1,10 +1,22 @@
 package uk.ac.soton.combinator.core;
 
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import uk.ac.soton.combinator.core.exception.IllegalCombinationException;
+
+/**
+ * @author Ales Cirnfus
+ *
+ * The super of all concrete combinators (wires & data). There are two abstract
+ * methods that concrete combinators must implement, {@code initLeftBoundary} 
+ * and {@code initRightBoundary}. Note that these methods are not called from 
+ * the constructor during initialisation. Rather, the boundaries are initialised 
+ * lazily when required for the composition process. This means that any instance
+ * variables of the concrete combinators can be safely used in port construction.
+ * 
+ * It also provides methods for sending/receiving messages and combinator composition 
+ */
 public abstract class Combinator {
 	
 	private final static int LEFT = 0;
@@ -15,8 +27,6 @@ public abstract class Combinator {
 	private final Boundary rightBoundary;
 	
 	protected final CombinatorOrientation combinatorOrientation;
-	
-	protected final static ExecutorService THREAD_POOL = Executors.newCachedThreadPool();
 	
 	protected abstract List<Port<?>> initLeftBoundary();
 	protected abstract List<Port<?>> initRightBoundary();
@@ -51,7 +61,9 @@ public abstract class Combinator {
 		}
 	}
 	
-	public Combinator combine(final Combinator other, CombinationType combinationType) {
+	public Combinator combine(final Combinator other, CombinationType combinationType) 
+			throws IllegalCombinationException {
+		
 		// check if both combinators can be combined (not combined yet)
 		if(combinable.compareAndSet(true, false)) {
 			if(! other.combinable.compareAndSet(true, false)) {
@@ -65,71 +77,83 @@ public abstract class Combinator {
 		initBoundaries();
 		other.initBoundaries();
 		
-		Combinator combinationResult;
-		
 		// try and combine the combinators
 		if(combinationType == CombinationType.HORIZONTAL) {
-			// try to connect the right boundary of this combinator with the left boundary of the other
-			List<Port<?>> thisRight = rightBoundary.getBoundaryInterface();
-			List<Port<?>> otherLeft = other.leftBoundary.getBoundaryInterface();
-			// we need the same number of ports
-			if(thisRight.size() != otherLeft.size()) {
-				// combination not possible -> both should stay combinable
-				combinable.compareAndSet(false, true);
-				other.combinable.compareAndSet(false, true);
-				throw new IllegalCombinationException("Incompatible boundery sizes of " +
-						"horizontally combined combinators. " + thisRight.size() + " port(s) connecting to "
-						+ otherLeft.size() + " port(s)");
-			}
-			
-			/*
-			 * This can throw IncompatiblePortsException at any stage which means
-			 * that some of the ports can be connected successfully before the whole
-			 * combination fails. This can leave both combinators in an inconsistent state
-			 * and, therefore, their 'combinable' flags are left marked as false; 
-			 * effectively rendering them unusable.
-			 */
-			for(int i=0; i<thisRight.size(); i++) {
-				Port<?> left = thisRight.get(i);
-				Port<?> right = otherLeft.get(i);
-				Port.connectPorts(left, right);
-			}
-			
-			// with the inner boundaries connected we can expose the outside ones as a new combinator
-			final List<Port<?>> newLeftBoundary = leftBoundary.getBoundaryInterface();
-			combinationResult = new Combinator() {
-				
-				@Override
-				protected List<Port<?>> initLeftBoundary() {
-					return newLeftBoundary;
-				}
-				
-				@Override
-				protected List<Port<?>> initRightBoundary() {
-					return other.rightBoundary.getBoundaryInterface();
-				}
-			};
+			return combineHorizontally(other);
 		} else {
-			// VERTICAL combination - merge left and right boundaries
-			final List<Port<?>> newLeftBoundary = leftBoundary.getBoundaryInterface();
-			newLeftBoundary.addAll(other.leftBoundary.getBoundaryInterface());
-			
-			final List<Port<?>> newRightBoundary = rightBoundary.getBoundaryInterface();
-			newRightBoundary.addAll(other.rightBoundary.getBoundaryInterface());
-			
-			combinationResult = new Combinator() {
-
-				@Override
-				protected List<Port<?>> initLeftBoundary() {				
-					return newLeftBoundary;
-				}
-				
-				@Override
-				protected List<Port<?>> initRightBoundary() {	
-					return newRightBoundary;
-				}
-			};
+			// must be VERTICAL
+			return combineVertically(other);
 		}
+	}
+	
+	private Combinator combineHorizontally(final Combinator other) 
+			throws IllegalCombinationException {
+		
+		// try to connect the right boundary of this combinator with the left boundary of the other
+		List<Port<?>> thisRight = rightBoundary.getBoundaryInterface();
+		List<Port<?>> otherLeft = other.leftBoundary.getBoundaryInterface();
+		// we need the same number of ports
+		if(thisRight.size() != otherLeft.size()) {
+			// combination not possible -> both should stay combinable
+			combinable.compareAndSet(false, true);
+			other.combinable.compareAndSet(false, true);
+			throw new IllegalCombinationException("Incompatible boundery sizes of " +
+					"horizontally combined combinators. " + thisRight.size() + " port(s) connecting to "
+					+ otherLeft.size() + " port(s)");
+		}
+		
+		/*
+		 * This can throw IncompatiblePortsException at any stage which means
+		 * that some of the ports can be connected successfully before the whole
+		 * combination fails. This can leave both combinators in an inconsistent state
+		 * and, therefore, their 'combinable' flags are left marked as false; 
+		 * effectively rendering them unusable.
+		 */
+		for(int i=0; i<thisRight.size(); i++) {
+			Port<?> left = thisRight.get(i);
+			Port<?> right = otherLeft.get(i);
+			Port.connectPorts(left, right);
+		}
+		
+		// with the inner boundaries connected we can expose the outside ones as a new combinator
+		final List<Port<?>> newLeftBoundary = leftBoundary.getBoundaryInterface();
+		Combinator combinationResult = new Combinator() {
+			
+			@Override
+			protected List<Port<?>> initLeftBoundary() {
+				return newLeftBoundary;
+			}
+			
+			@Override
+			protected List<Port<?>> initRightBoundary() {
+				return other.rightBoundary.getBoundaryInterface();
+			}
+		};
+		// properly initialise the boundaries of the new combinator;
+		combinationResult.initBoundaries();
+		return combinationResult;
+	}
+	
+	private Combinator combineVertically(final Combinator other) {
+		// VERTICAL combination - merge left and right boundaries
+		final List<Port<?>> newLeftBoundary = leftBoundary.getBoundaryInterface();
+		newLeftBoundary.addAll(other.leftBoundary.getBoundaryInterface());
+		
+		final List<Port<?>> newRightBoundary = rightBoundary.getBoundaryInterface();
+		newRightBoundary.addAll(other.rightBoundary.getBoundaryInterface());
+		
+		Combinator combinationResult = new Combinator() {
+
+			@Override
+			protected List<Port<?>> initLeftBoundary() {				
+				return newLeftBoundary;
+			}
+			
+			@Override
+			protected List<Port<?>> initRightBoundary() {	
+				return newRightBoundary;
+			}
+		};
 		// properly initialise the boundaries of the new combinator;
 		combinationResult.initBoundaries();
 		return combinationResult;
@@ -159,7 +183,23 @@ public abstract class Combinator {
 		return defs;
 	}
 	
-	protected Boundary getLeftBoundary() {
+	protected void sendLeft(Message<?> msg, int portNumber) {
+		getLeftBoundary().send(msg, portNumber);
+	}
+	
+	protected void sendRight(Message<?> msg, int portNumber) {
+		getRightBoundary().send(msg, portNumber);
+	}
+	
+	protected Message<?> receiveLeft(int portNumber) {
+		return getLeftBoundary().receive(portNumber);
+	}
+	
+	protected Message<?> receiveRight(int portNumber) {
+		return getRightBoundary().receive(portNumber);
+	}
+	
+	private Boundary getLeftBoundary() {
 		if(combinatorOrientation == CombinatorOrientation.LEFT_TO_RIGHT) {
 			return leftBoundary;
 		} else {
@@ -167,7 +207,7 @@ public abstract class Combinator {
 		}
 	}
 	
-	protected Boundary getRightBoundary() {
+	private Boundary getRightBoundary() {
 		if(combinatorOrientation == CombinatorOrientation.LEFT_TO_RIGHT) {
 			return rightBoundary;
 		} else {
@@ -189,9 +229,5 @@ public abstract class Combinator {
 			ret += p.toString() + "\n";
 		}
 		return ret;
-	}
-	
-	public static void shutDownThreadPool() {
-		THREAD_POOL.shutdown();
 	}
 }

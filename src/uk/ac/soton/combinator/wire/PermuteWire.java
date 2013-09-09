@@ -8,7 +8,7 @@ import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.Port;
 import uk.ac.soton.combinator.core.PortDefinition;
 
-public class PermuteWire extends UntypedWire {
+public class PermuteWire extends AbstractUntypedWire {
 
 	private final PortDefinition<?>[] portsDefinitions;
 	private final int[] portPermutations;

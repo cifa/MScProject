@@ -1,4 +1,4 @@
-package uk.ac.soton.combinator.data;
+package uk.ac.soton.combinator.deprecated;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -6,12 +6,17 @@ import java.util.concurrent.Exchanger;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
-import uk.ac.soton.combinator.core.RequestFailureException;
+import uk.ac.soton.combinator.core.exception.MessageFailureException;
+import uk.ac.soton.combinator.core.exception.RequestFailureException;
 
+/**
+ * Just for testing purposes - uses java.util.concurrent.Exchanger
+ * (slow)
+ */
+@Deprecated
 public class EliminationExchanger3<T> extends Combinator {
 	
 	private final Exchanger<T> exchanger;
@@ -35,7 +40,7 @@ public class EliminationExchanger3<T> extends Combinator {
 			public void accept(Message<? extends T> msg)
 					throws MessageFailureException {
 				try {
-					if(exchanger.exchange(msg.getContent()) != null) {
+					if(exchanger.exchange(msg.get()) != null) {
 						throw msgEx;
 					}				
 				} catch (InterruptedException e) {
@@ -52,7 +57,7 @@ public class EliminationExchanger3<T> extends Combinator {
 		ports.add(Port.getPassiveOutPort(dataType, new PassiveOutPortHandler<T>() {
 
 			@Override
-			public Message<T> produce() throws RequestFailureException {
+			public Message<? extends T> produce() throws RequestFailureException {
 				try {
 					T value = exchanger.exchange(null);
 					if(value != null) {

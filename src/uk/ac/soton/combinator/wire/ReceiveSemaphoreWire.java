@@ -1,4 +1,4 @@
-package uk.ac.soton.combinator.data;
+package uk.ac.soton.combinator.wire;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,15 +9,16 @@ import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
-import uk.ac.soton.combinator.core.RequestFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorTransientFailureException;
 
-public class ReceiveSemaphore<T> extends AbstractSemaphore<T> {
+public class ReceiveSemaphoreWire<T> extends AbstractSemaphoreWire<T> {
 	
-	public ReceiveSemaphore(Class<T> dataType, int permits, CombinatorOrientation orientation) {
+	public ReceiveSemaphoreWire(Class<T> dataType, int permits, CombinatorOrientation orientation) {
 		super(dataType, new Semaphore(permits), orientation);
 	}
 	
-	public ReceiveSemaphore(Class<T> dataType, AbstractSemaphore<T> linkedSemaphore, 
+	public ReceiveSemaphoreWire(Class<T> dataType, AbstractSemaphoreWire<T> linkedSemaphore, 
 			CombinatorOrientation orientation) {
 		super(dataType, linkedSemaphore.semaphore, orientation);
 	}
@@ -27,15 +28,15 @@ public class ReceiveSemaphore<T> extends AbstractSemaphore<T> {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		ports.add(Port.getPassiveOutPort(dataType, new PassiveOutPortHandler<T>() {
 			
-			private final RequestFailureException ex = 
-					new RequestFailureException("No Semaphore permission available");
+			private final CombinatorTransientFailureException ex = 
+					new CombinatorTransientFailureException("No Semaphore permission available");
 
 			@SuppressWarnings("unchecked")
 			@Override
-			public Message<T> produce() {
+			public Message<? extends T> produce() throws CombinatorFailureException {
 				if(semaphore.tryAcquire()) {
 					try {
-						return (Message<T>) getRightBoundary().receive(0);
+						return (Message<? extends T>) receiveRight(0);
 					} finally {
 						semaphore.release();
 					}

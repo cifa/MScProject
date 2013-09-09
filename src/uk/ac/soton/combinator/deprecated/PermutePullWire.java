@@ -1,25 +1,30 @@
-package uk.ac.soton.combinator.wire;
+package uk.ac.soton.combinator.deprecated;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import uk.ac.soton.combinator.core.BoundaryInitializationException;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
-import uk.ac.soton.combinator.core.PassiveInPortHandler;
+import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
+import uk.ac.soton.combinator.core.exception.BoundaryInitializationException;
+import uk.ac.soton.combinator.core.exception.CombinatorFailureException;
 
-public class PermutePushWire extends Combinator {
+/**
+ * Initial attempt at permute wires - not very flexible
+ * Use <code>PermuteWire</code> instead
+ */
+@Deprecated
+public class PermutePullWire extends Combinator {
 	
 	private final int[] portPermutations;
 	private final Class<?>[] portTypes;
 	
-	public PermutePushWire(Class<?>[] portTypes, int[] portPermutations, CombinatorOrientation orientation) {
+	public PermutePullWire(Class<?>[] portTypes, int[] portPermutations, CombinatorOrientation orientation) {
 		super(orientation);
 		if(portTypes == null || portTypes.length == 0) {
 			throw new IllegalArgumentException("At least one port type required"); 
@@ -33,6 +38,15 @@ public class PermutePushWire extends Combinator {
 
 	@Override
 	protected List<Port<?>> initLeftBoundary() {
+		List<Port<?>> ports = new ArrayList<Port<?>>();
+		for(int i=0; i<portTypes.length; i++) {
+			ports.add(Port.getActivePort(portTypes[i], DataFlow.IN));
+		}
+		return ports;
+	}
+
+	@Override
+	protected List<Port<?>> initRightBoundary() {
 		Field portDataType = null;
 		try {
 			portDataType = Port.class.getDeclaredField("portDataType");
@@ -42,9 +56,9 @@ public class PermutePushWire extends Combinator {
 		portDataType.setAccessible(true);
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		for(int i=0; i<portTypes.length; i++) {
-			Port<Object> port = Port.getPassiveInPort(Object.class, new LeftPortHandler(portPermutations[i]));
+			Port<Object> port = Port.getPassiveOutPort(Object.class, new RightPortHandler(portPermutations[i]));
 			try {
-				portDataType.set(port, portTypes[i]);
+				portDataType.set(port, portTypes[portPermutations[i]]);
 			} catch (IllegalArgumentException | IllegalAccessException e) {
 				throw new BoundaryInitializationException("Couldn't set field 'portDataType' in class Port", e);
 			}
@@ -53,28 +67,18 @@ public class PermutePushWire extends Combinator {
 		return ports;
 	}
 
-	@Override
-	protected List<Port<?>> initRightBoundary() {
-		List<Port<?>> ports = new ArrayList<Port<?>>();
-		for(int i=0; i<portTypes.length; i++) {
-			ports.add(Port.getActivePort(portTypes[portPermutations[i]], DataFlow.OUT));
-		}
-		return ports;
-	}
-	
-	private class LeftPortHandler extends PassiveInPortHandler<Object> {
+	private class RightPortHandler extends PassiveOutPortHandler<Object> {
 		
 		final int portIndex;
 		
-		LeftPortHandler(int portIndex) {
+		RightPortHandler(int portIndex) {
 			this.portIndex = portIndex;
 		}
-		
-		@Override
-		public void accept(Message<? extends Object> msg)
-				throws MessageFailureException {
-			getRightBoundary().send(msg, portIndex);
-		}
-	};
 
+		@SuppressWarnings("unchecked")
+		@Override
+		public Message<Object> produce() throws CombinatorFailureException {
+			return (Message<Object>) receiveLeft(portIndex);
+		}	
+	};
 }

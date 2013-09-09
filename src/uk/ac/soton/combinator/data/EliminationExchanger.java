@@ -2,92 +2,69 @@ package uk.ac.soton.combinator.data;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicStampedReference;
 import java.util.concurrent.locks.LockSupport;
 
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.PassiveInPortHandler;
 import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
-import uk.ac.soton.combinator.core.RequestFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorTransientFailureException;
 
+/**
+ * Well-performing elimination exchanger inspired by the 
+ * algorithm used in java.util.concurrent.Exchanger 
+ */
 public class EliminationExchanger<T> extends Combinator {
 	
 	private final static int OFFERED = 0;
 	private final static int TAKEN = 1;
 	private final static int WITHDRAWN = 2;
 	
-	private static final int SIZE = 256;//(Runtime.getRuntime().availableProcessors() + 1);
+	private final static int PUSH = 0;
+	private final static int POP = 1;
+	
+	private static final int SIZE = (Runtime.getRuntime().availableProcessors() + 1);
 	private static final int SPINS = (Runtime.getRuntime().availableProcessors() == 1) ? 0 : 2000;
-	private static final long BACKOFF_BASE = 128L;
-	private static final Random rand = new Random();
 	private final Class<T> dataType;
-	private final AtomicReference<Node<T>>[] slots;
+	private final AtomicReference<Node<Message<? extends T>>>[] slots;
 	
 	private final AtomicInteger max = new AtomicInteger(1);
 	
-	private final MessageFailureException msgEx = new MessageFailureException();
-	private final RequestFailureException reqEx = new RequestFailureException();
+	private static final CombinatorTransientFailureException TRANSIENT_EXCEPTION = 
+			new CombinatorTransientFailureException("Exchange failed");
 	
 	@SuppressWarnings("unchecked")
 	public EliminationExchanger(Class<T> dataType, CombinatorOrientation orientation) {
 		super(orientation);
 		this.dataType = dataType;
-		slots = (AtomicReference<Node<T>>[]) new AtomicReference<?>[SIZE];
+		slots = (AtomicReference<Node<Message<? extends T>>>[]) new AtomicReference<?>[SIZE];
 		for(int i=0; i<SIZE; i++) {
 			slots[i] = new AtomicReference<>();
 		}
 	}
-	
+
 	public AtomicInteger in = new AtomicInteger();
 	public AtomicInteger inSuc = new AtomicInteger();
-	public AtomicInteger off = new AtomicInteger();
-
+	
 	@Override
 	protected List<Port<?>> initLeftBoundary() {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		ports.add(Port.getPassiveInPort(dataType, new PassiveInPortHandler<T>() {
-	
+
 			@Override
 			public void accept(Message<? extends T> msg)
-					throws MessageFailureException {
-				
-				int index = 0;
-				int fails = 0;
-				Node<T> node = new Node<T>(msg.getContent());
+					throws CombinatorTransientFailureException {
 				in.incrementAndGet();
-				
-				while(true) {
-					if(slots[index].compareAndSet(null, node)) {
-						off.incrementAndGet();
-						await(node, randomDelay(fails));
-						slots[index].compareAndSet(node, null);
-						if(node.get() == TAKEN) {
-							inSuc.incrementAndGet();
-							return;
-						} else {
-							int m = max.get();
-							if(index > 0 && m > 1) {
-								max.compareAndSet(m, m - 1);
-							}
-							throw msgEx;
-						}
-					} else if (fails > SIZE) {
-						throw msgEx;
-					} else if(++fails > 1) {               
-		                int m = max.get();
-		                if (fails > 3 && m < SIZE && max.compareAndSet(m, m + 1)) {
-		                	index = m-1;
-		                } else {
-		                	index = rand.nextInt(m);
-		                }
-		            }
+				Node<Message<? extends T>> node = exchange(new Node<Message<? extends T>>(msg, PUSH));
+				if (node.getStamp() != TAKEN) {
+					throw TRANSIENT_EXCEPTION;
 				}
+				inSuc.incrementAndGet();
 			}
 		}));
 		return ports;
@@ -101,58 +78,86 @@ public class EliminationExchanger<T> extends Combinator {
 		List<Port<?>> ports = new ArrayList<Port<?>>();
 		ports.add(Port.getPassiveOutPort(dataType, new PassiveOutPortHandler<T>() {
 
+			@SuppressWarnings("unchecked")
 			@Override
-			public Message<T> produce() throws RequestFailureException {
+			public Message<? extends T> produce() throws CombinatorTransientFailureException {
 				out.incrementAndGet();
-				Node<T> node;
-				for(int i=0; i<max.get(); i++) {
-					if((node = slots[i].get()) != null 
-							&& node.compareAndSet(OFFERED, TAKEN)) {
-						slots[i].compareAndSet(node, null);
-						LockSupport.unpark(node.waiter);
-						outSuc.incrementAndGet();
-						return new Message<T>(dataType, node.value);
-					}
+				Node<Message<? extends T>> node = exchange(new Node<Message<? extends T>>(null, POP));
+				if (node.getStamp() != TAKEN) {
+					throw TRANSIENT_EXCEPTION;
 				}
-				throw reqEx;
+				outSuc.incrementAndGet();
+				return (Message<? extends T>) node.getReference();
 			}
 		}));
 		return ports;
 	}
 	
-	private static void await(Node<?> node, long nanos) {
+	private Node<Message<? extends T>> exchange(Node<Message<? extends T>> me) {
+		int index = 0;
+		int fails = 0;
+		Node<Message<? extends T>> you;
+
+		while (true) {
+			if ((you = slots[index].get()) != null
+					&& me.type != you.type
+					&& you.compareAndSet(null, me.value, OFFERED, TAKEN)) {
+				slots[index].compareAndSet(you, null);
+				LockSupport.unpark(you.waiter);
+				me.compareAndSet(null, you.value, OFFERED, TAKEN);
+				break;
+			} else if (you == null && slots[index].compareAndSet(null, me)) {
+				await(me, index == 0);
+				slots[index].compareAndSet(me, null);
+				int m = max.get();
+				if (m > (index >>> 1) && m > 1) {		
+					max.compareAndSet(m, m - 1);  
+				}
+				break;
+			} else if (++fails > 1) {
+				Thread.yield();
+				int m = max.get();
+				if(fails > m * 3) {
+					break;
+				} else if (fails > 2 && m < SIZE && max.compareAndSet(m, m + 1)) {
+					index = m;
+				} else if (--index < 0) {
+					index = m - 1;
+				}
+			}
+		}
+		return me;
+	}
+
+	private static void await(Node<?> node, boolean timed) {
 		boolean waited = false;
 		int spins = SPINS;
         while(true) {
-        	if(node.get() == TAKEN) {
+        	if(node.getStamp() == TAKEN) {
         		return;
         	} else if(spins-- > 0) {
         		// spin wait 
-        	} else if(! waited) {
-        		LockSupport.parkNanos(node.waiter, nanos);
+        	} else if(timed && ! waited) {
+        		LockSupport.parkNanos(node.waiter, 3000000);
         		waited = true;
         	} else {
-				node.compareAndSet(OFFERED, WITHDRAWN);
+				node.compareAndSet(null, null, OFFERED, WITHDRAWN);
         		return;
         	}
         }
 	}
 	
-	private static long randomDelay(int fails) {
-		return ((BACKOFF_BASE << fails) - 1) & rand.nextInt();
-	}
-	
-	private static final class Node<T> extends AtomicReference<Integer> {  
+	private static final class Node<V> extends AtomicStampedReference<Object> {  
 		
-		private static final long serialVersionUID = -5498638701290520216L;
-		
-		public final T value;
+		public final V value;
 		public final Thread waiter;
+		public final int type;
 		
-		Node(T value) {
-			super(OFFERED);
+		Node(V value, int type) {
+			super(null, OFFERED);
 			this.value = value;
 			this.waiter = Thread.currentThread();
+			this.type = type;
 		}
     }
 

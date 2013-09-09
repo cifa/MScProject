@@ -9,7 +9,8 @@ import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
 import uk.ac.soton.combinator.core.PassiveOutPortHandler;
 import uk.ac.soton.combinator.core.Port;
-import uk.ac.soton.combinator.core.RequestFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorPermanentFailureException;
+import uk.ac.soton.combinator.core.exception.CombinatorTransientFailureException;
 
 public class ChoiceReceiveWire<T> extends Combinator {
 
@@ -44,22 +45,19 @@ public class ChoiceReceiveWire<T> extends Combinator {
 		ports.add(Port.getPassiveOutPort(dataType, new PassiveOutPortHandler<T>() {
 
 			@Override
-			public Message<T> produce() throws RequestFailureException {
+			public Message<? extends T> produce() throws CombinatorPermanentFailureException {
 				int portIndex = 0;
-				//TODO do we really wanna loop forever if all choices always fail?
 				while(true) {
 					try {
 						// try to receive a message on the current choice port
 						@SuppressWarnings("unchecked")
-						Message<T> msg = (Message<T>) getLeftBoundary().receive(portIndex);
-//						System.out.println("Succeeded on port " + portIndex);
+						Message<? extends T> msg = (Message<? extends T>) receiveLeft(portIndex);
 						// we've got a message -> return it
 						return msg;
-					} catch(RequestFailureException ex) {
+					} catch(CombinatorTransientFailureException ex) {
 						// no luck on this port -> move to the next choice
 						if(++portIndex == noOfChoices) {
 							portIndex = 0;
-//							System.out.println("All choices failed");
 						}
 					}
 				}

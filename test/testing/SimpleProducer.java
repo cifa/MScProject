@@ -9,8 +9,8 @@ import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.CombinatorOrientation;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
 import uk.ac.soton.combinator.core.Port;
+import uk.ac.soton.combinator.core.exception.CombinatorPermanentFailureException;
 
 public class SimpleProducer extends Combinator implements Runnable {
 	
@@ -39,11 +39,11 @@ public class SimpleProducer extends Combinator implements Runnable {
 	public void run() {
 		for (int i = 0; i < noOfMsgs; i++) {
 			try {
-				getRightBoundary().send(new Message<Integer>(Integer.class, rand.nextInt(100)), 0);
-			} catch (MessageFailureException ex) {
+				sendRight(new Message<Integer>(Integer.class, rand.nextInt(100)), 0);
+			} catch (CombinatorPermanentFailureException ex) {
 				i--;
 				failures++;
-//				System.out.println("producer backoff");
+				System.out.println("producer backoff");
 			}
 		}
 	}

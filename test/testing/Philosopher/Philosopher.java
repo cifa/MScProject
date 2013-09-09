@@ -8,10 +8,24 @@ import java.util.Random;
 import uk.ac.soton.combinator.core.Combinator;
 import uk.ac.soton.combinator.core.DataFlow;
 import uk.ac.soton.combinator.core.Message;
-import uk.ac.soton.combinator.core.MessageFailureException;
+import uk.ac.soton.combinator.core.MessageEventHandler;
 import uk.ac.soton.combinator.core.Port;
+import uk.ac.soton.combinator.core.exception.CombinatorPermanentFailureException;
 
 public class Philosopher extends Combinator implements Runnable {
+	
+	private static final MessageEventHandler<Integer> callback = 
+			new MessageEventHandler<Integer>() {
+
+				@Override
+				public void messageInvalidated(Message<Integer> message, Integer content) {
+					System.out.println("Request from Philosopher " + content + " has been" +
+							" cancelled -> he's gonna STARVE");	
+				}
+
+				@Override
+				public void messageFullyAcknowledged(Message<Integer> message) {}
+			};
 	
 	private PhilosopherState state = PhilosopherState.THINKING;
 	private final int id;
@@ -45,16 +59,16 @@ public class Philosopher extends Combinator implements Runnable {
 				System.out.println("Philosopher " + id + " is trying to get the forks");
 				try {
 					// grab the forks
-					getRightBoundary().send(new Message<Integer>(Integer.class, id), 0);
+					sendRight(new Message<Integer>(Integer.class, id), 0);
 					state = PhilosopherState.EATING;
 					System.out.println("Philosopher " + id + " has acquired both forks");
-				} catch (MessageFailureException ex) {
+				} catch (CombinatorPermanentFailureException ex) {
 					System.out.println("Philosopher " + id + " is STARVING");
 				}
 			} else {
 				System.out.println("Philosopher " + id + " has finished EATING now");
 				// return the forks
-				getRightBoundary().send(new Message<Integer>(Integer.class, id), 1);
+				sendRight(new Message<Integer>(Integer.class, id), 1);
 				state = PhilosopherState.THINKING;
 				System.out.println("Philosopher " + id + " has return the forks");
 			}
@@ -63,6 +77,11 @@ public class Philosopher extends Combinator implements Runnable {
 			try {
 				Thread.sleep(wait);
 			} catch (InterruptedException e) {}
+		}
+		// make sure you don't keep the forks when you leave
+		if(state == PhilosopherState.EATING) {
+			// return the forks
+			sendRight(new Message<Integer>(Integer.class, id), 1);
 		}
 	}
 
